@@ -3,12 +3,12 @@
 
 ### Overview
 
-This is a finished service which provides edge-based AI people detection, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  
+This is an example Santa Cruz finished service providing edge-based AI people detection with the output results stored in the cloud. Composition of the video + AI output is shown in an Azure Website.  
 
 ![](/media/People-Detector-AI.gif)
 
+###
 Please press the button below to deploy the people detector AI application for Azure Eye:
-
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
