@@ -5,6 +5,8 @@
 
 This is a finished service which provides edge-based AI people detection, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  
 
+![](/media/People-Detector-AI.gif)
+
 Please press the button below to deploy the people detector AI application for Azure Eye:
 
 
