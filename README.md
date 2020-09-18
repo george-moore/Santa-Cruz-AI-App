@@ -8,7 +8,7 @@ This is an example open source Santa Cruz application providing edge-based AI pe
 ![](/media/People-Detector-AI.gif)
 
 ###
-Please press the button below to deploy the people detector AI application for Azure Eye:
+Please press the button below to deploy the people detector application to your AI device:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
