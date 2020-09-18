@@ -10,7 +10,7 @@ This is an open source Santa Cruz AI application providing edge-based people det
 ###
 This application can execute against a fully emulated Santa Cruz AI Devkit in the cloud, or with a physical AI Devkit.
 
-Press the button below to deploy the people detector application to your AI device:
+Press this button to deploy the people detector application to your AI device:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
@@ -22,13 +22,10 @@ Software Emulation Topology
 Physical Hardware Topology
 ![](/media/Hardware-Topology.PNG)
 
+##
 This is also a reference open source application which showcases best practices for security, privacy and compliance. It has the following conceptual topology:
 
 ![](/media/AI-App-Topology.PNG)
-
-
-
-
 
 
 
