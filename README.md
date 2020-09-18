@@ -3,7 +3,15 @@
 
 ### Overview
 
-This is a finished service which provides edge-based AI people detection, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  It has the following conceptual topology:
+This is a finished service which provides edge-based AI people detection, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  
+
+Please press the button below to deploy the people detector AI application for Azure Eye:
+
+
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
+
+
+It has the following conceptual topology:
 
 ![](/media/AI-App-Topology.PNG)
 
@@ -11,10 +19,7 @@ This is a finished service which provides edge-based AI people detection, with t
 This is a reference open source edge AI application which showcases best practices for security, privacy and compliance.
 
 
-Please press the button below to deploy the people detector AI application for Azure Eye:
 
-
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
 # Details
 
