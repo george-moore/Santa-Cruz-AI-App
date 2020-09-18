@@ -3,14 +3,14 @@
 
 ### Overview
 
-This is an open source Santa Cruz AI application providing edge-based people detection. Video and AI output from the edge device is stored in Azure Data Lake in the public cloud, with the user interface running as an Azure Website:
+This is an open source Santa Cruz AI application providing edge-based people detection. Video and AI output from the on-prem edge device is egressed to Azure Data Lake, with the user interface running as an Azure Website:
 
 ![](/media/People-Detector-AI.gif)
 
 ###
 This application can execute against a fully emulated Santa Cruz AI Devkit in the cloud, or with a physical AI Devkit.
 
-Press this button to deploy the people detector application to your AI device:
+Press this button to deploy the people detector application to your Santa Cruz AI device:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
@@ -23,7 +23,11 @@ Physical Hardware Topology
 ![](/media/Hardware-Topology.PNG)
 
 ##
-This is also a reference open source application which showcases best practices for security, privacy and compliance. It has the following conceptual topology:
+This reference open source application showcases best practices for security, privacy and compliance.  It is intended to be immediately useful for anyone to use, but 
+
+
+
+It has the following conceptual topology:
 
 ![](/media/AI-App-Topology.PNG)
 
