@@ -14,7 +14,7 @@ Press the button below to deploy the people detector application to your AI devi
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
-**Please note: the current implementation only runs in emulation in the cloud. A version for the physical Santa Cruz Devkit will be available shortly.**
+**Please note: the current implementation runs as emulation in the cloud. A version for the physical Santa Cruz Devkit will be available soon.**
 
 This is also a reference open source application which showcases best practices for security, privacy and compliance. It has the following conceptual topology:
 
