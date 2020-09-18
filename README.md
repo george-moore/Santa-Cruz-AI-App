@@ -1,9 +1,9 @@
-# Santa Cruz People Detector AI Application
+# Open Source People Detector AI Application
 
 
 ### Overview
 
-This is an example Santa Cruz finished service providing edge-based AI people detection with the output results stored in an Azure Data Lake. The user interface runs as an Azure Website:
+This is an example open source Santa Cruz application providing edge-based AI people detection with the output results stored in an Azure Data Lake. The user interface runs as an Azure Website:
 
 ![](/media/People-Detector-AI.gif)
 
