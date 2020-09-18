@@ -16,6 +16,11 @@ Press the button below to deploy the people detector application to your AI devi
 
 **Please note: the current implementation runs as emulation in the cloud. A version for the physical Santa Cruz Devkit will be available soon.**
 
+
+![](/media/Software-Emulation.PNG)
+
+![](/media/Hardware-Topology.PNG)
+
 This is also a reference open source application which showcases best practices for security, privacy and compliance. It has the following conceptual topology:
 
 ![](/media/AI-App-Topology.PNG)
