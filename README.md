@@ -5,7 +5,7 @@
 
 This is an open source Santa Cruz AI application providing edge-based people detection. Video and AI output from the edge device is stored in Azure Data Lake in the public cloud, with the user interface running as an Azure Website:
 
-![](/media/People-Detector-AI.gif)
+![](/media/People Detector AI.gif)
 
 ###
 This application can execute against a fully emulated Santa Cruz AI Devkit in the cloud, or with a physical AI Devkit.
