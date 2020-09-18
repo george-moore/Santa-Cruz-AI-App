@@ -5,6 +5,7 @@
 
 This is an edge AI application which provides people detection AI at the edge, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  It has the following conceptual topology:
 
+![](/media/AI-App-Topology.PNG)
 
 
 This is a reference open source edge AI application 
