@@ -3,7 +3,7 @@
 
 ### Overview
 
-This is an example Santa Cruz finished service providing edge-based AI people detection with the output results stored in the cloud. Composition of the video + AI output is shown in an Azure Website.  
+This is an example Santa Cruz finished service providing edge-based AI people detection with the output results stored in an Azure Data Lake. The user interface runs as an Azure Website:
 
 ![](/media/People-Detector-AI.gif)
 
@@ -12,13 +12,12 @@ Please press the button below to deploy the people detector AI application for A
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
 
-
-It has the following conceptual topology:
+This is also a reference open source application which showcases best practices for security, privacy and compliance. It has the following conceptual topology:
 
 ![](/media/AI-App-Topology.PNG)
 
 
-This is a reference open source edge AI application which showcases best practices for security, privacy and compliance.
+
 
 
 
