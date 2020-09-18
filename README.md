@@ -1,8 +1,15 @@
 # Santa Cruz People Detector AI Application
 
-# Deploy an Edge-based Machine Learning Solution
-## About this sample
+
 ### Overview
+
+This is an edge AI application which provides people detection AI at the edge, with the output results stored in the cloud, and rendered by a full UX running as an Azure Website.  It has the following conceptual topology:
+
+
+
+This is a reference open source edge AI application 
+
+which showcases best practices for security, privacy and compliance.
 
 Please press the button below to deploy the people detector AI application for Azure Eye:
 
