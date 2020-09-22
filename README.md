@@ -14,7 +14,7 @@ This application can execute against a fully emulated Santa Cruz AI Devkit in th
 
 Press this button to deploy the people detector application to either the cloud or your Santa Cruz AI device:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20200918.5%2Fazuredeploy-20200918.5.json)
 
 **Please note: the current implementation runs as emulation in the cloud. A version for the physical Santa Cruz Devkit will be available soon!**
 ## Software emulation app topology
@@ -27,7 +27,7 @@ Press this button to deploy the people detector application to either the cloud 
 # Installation details
 This reference open source application showcases best practices for AI security, privacy and compliance.  It is intended to be immediately useful for anyone to use with their Santa Cruz AI device. Deployment starts with this button:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2Fazuredeploy-updated.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://ms.portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20200918.5%2Fazuredeploy-20200918.5.json)
 #
 
 This will redirect you to the Azure portal with this deployment page:
