@@ -32,7 +32,7 @@ This reference open source application showcases best practices for AI security,
 
 This will redirect you to the Azure portal with this deployment page:
 
-<img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/Custom-Deployment.PNG" width="550"/>
+![People Detector](/images/Custom-Deployment.PNG)
 To deploy an emulation environment in the cloud, please enter the following parameters:
 
 * __Resource Group IoT__ = Unique name of a new resource group to host your IoT Hub, Data Lake and Web App
