@@ -32,7 +32,8 @@ This reference open source application showcases best practices for AI security,
 
 This will redirect you to the Azure portal with this deployment page:
 
-![People Detector](/images/Custom-Deployment.PNG)
+![People Detector](/images/Custom-Deployment.png)
+
 To deploy an emulation environment in the cloud, please enter the following parameters:
 
 * __Resource Group IoT__ = Unique name of a new resource group to host your IoT Hub, Data Lake and Web App
