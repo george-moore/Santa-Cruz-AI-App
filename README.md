@@ -32,7 +32,7 @@ This reference open source application showcases best practices for AI security,
 This will redirect you to the Azure portal with this deployment page:
 
 <img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/Custom-Deployment.PNG" width="550"/>
-You will need Owner or Contributor access to the subscription you select. To deploy an emulation environment in the cloud, please enter the following parameters:
+To deploy an emulation environment in the cloud, please enter the following parameters:
 
 * __Resource Group IoT__ = Unique name of a new resource group to host your IoT Hub, Data Lake and Web App
 * __Resource Group Device__ = Unique name of a new resource group to host the virtualized Santa Cruz AI device. This virtualized device connects to your Data Lake to store the AI and Video output.
@@ -42,14 +42,21 @@ You will need Owner or Contributor access to the subscription you select. To dep
 
 Once deployment is complete, you can launch the web application by navigating to the *Resource Group IoT* name selected above. You will see an Azure Web Services deployment which starts with "ues-eyeapp" followed by 4 random digits. Select this app, then chose the "Browse" button in the top left:
 
-<img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/Web-App-Launch.PNG" width="500"/>
+![Web Application](/images/Web-App-Launch.PNG)
 
 You will need to supply the password you entered at deployment time.
 
-# TODO Be Completed
-It has the following conceptual topology:
-
-![](/media/AI-App-Topology.PNG)
 
 
+### Installation Permissions
+To install this reference application you must have Owner or Contributor level access to the target subscription.  This deployment will create resources within the following Azure namespaces:
 
+* Microsoft.Devices
+* Microsoft.Authorization
+* Microsoft.ContainerInstance
+* Microsoft.ManagedIdentity
+* Microsoft.Web
+* Microsoft.Compute
+* Microsoft.Network
+* Microsoft.Storage
+* Microsoft.Resources
