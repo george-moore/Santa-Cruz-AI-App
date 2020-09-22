@@ -6,7 +6,8 @@
 This is an open source Santa Cruz AI application providing edge-based people detection. Video and AI output from the on-prem edge device is egressed to Azure Data Lake, with the user interface running as an Azure Website:
 
 
-<img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/People-Detector-AI.gif" width="800"/>
+![People Detector](/images/People-Detector-AI.gif)
+
 
 ###
 This application can execute against a fully emulated Santa Cruz AI Devkit in the cloud, or with a physical AI Devkit.
@@ -17,10 +18,10 @@ Press this button to deploy the people detector application to either the cloud 
 
 **Please note: the current implementation runs as emulation in the cloud. A version for the physical Santa Cruz Devkit will be available soon.**
 ## Software emulation app topology
-<img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/Software-Emulation.PNG" width="800"/>
+![People Detector](/images/Software-Emulation.PNG)
 
 ## Physical hardware app topology
-<img src="https://github.com/george-moore/Santa-Cruz-AI-App/blob/master/media/Hardware-Topology.PNG" width="800"/>
+![People Detector](/images/Hardware-Topology.PNG)
 
 
 # Installation details
