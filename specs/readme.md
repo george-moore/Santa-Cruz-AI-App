@@ -12,9 +12,14 @@ Once you click on the **azureEyeEdgeDevice**,  you will see this page:
 
 ![](/images/IoT-Hub-Containers.png)
 #
+Click on the Module Identity Twin at the top:
 
-![](/images/IoT-Hub-Identity-Twin.png)
+![People Detector](IoT-Hub-Identity-Twin.png)
+
+
 #
+
+You will see the live configuration of the IoT Edge container in the device:
 
 ![](/images/IoT-Hub-Identity-Twin-Details.png)
 #
