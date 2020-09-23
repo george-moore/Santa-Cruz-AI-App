@@ -8,18 +8,19 @@ You can view the details on these two containers by visting the IoT Hub which wa
 
 ![](/images/IoT-Hub-Edge.png)
 #
-Once you click on the **azureEyeEdgeDevice**,  you will see this page:
+Once you click on the **azureEyeEdgeDevice**,  you will see this page. Click on the *camerastream* container at the bottom:
 
 ![](/images/IoT-Hub-Containers.png)
 #
-Click on the Module Identity Twin at the top:
+This will bring up the details on the camerastream container. Click on the Module Identity Twin at the top:
 
-![People Detector](IoT-Hub-Identity-Twin.png)
+![](/images/IoT-Hub-Identity-Twin.png)
 
 
 #
 
-You will see the live configuration of the IoT Edge container in the device:
+You will then see the live configuration of the IoT Edge container in the device:
 
 ![](/images/IoT-Hub-Identity-Twin-Details.png)
 #
+You can edit this configuration and the changes will be reflected in the device. For example, if you wished to use your own prerecorded video in the application, you can edit the **rtsp** field and change the /camera-stream/video/sample-video.mp4 with your own video which you previously placed on the device.
