@@ -8,9 +8,10 @@ Your Virtual Azure Eye is a
 
 You can directly access your Virtual Azure Eye in your subscription via SSH, however, by default the VM is not addressible on the open internet.  You must discover your local client IP address and then open a VNET rule for that IP address.  Once this happens you can SSH into your VM from your client device.  Here are the instructions to SSH into your Virtual Eye.
 
+#
+
 
 First, navigate to the `Resource Group Device` in your Azure Subscription from your original deployment. This is the Resource Group which hosts the Azure VM, VNET, etc. Click on the `default-NSG` resource:
-
 ![Eye VM](/images/NSG.png)
 
 #
