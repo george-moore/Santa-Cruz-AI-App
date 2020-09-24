@@ -10,7 +10,7 @@ This is an open source Santa Cruz AI application providing edge-based people det
 
 
 ###
-This application can execute against a fully emulated Santa Cruz AI Devkit in the cloud, or with a physical AI Devkit.
+This application can execute against a Virtual Azure Eye AI Device in the cloud, or with a physical Santa Cruz AI Devkit.
 
 Press this button to deploy the people detector application to either the cloud or your Santa Cruz AI device:
 
