@@ -22,7 +22,7 @@ Next, click on the `AllowSSH` rule that was created as a part of the original de
 
 #
 
-Now you must enter your own client device public IP address into the network security rule. There are many sites which can provide this, such as http://checkip.dyndns.org/
+Now you must enter your own client device public IP address into the network security rule. There are many sites which can provide your current IP address, such as http://checkip.dyndns.org/.
 
 Copy the public IP address of your local client device and place it into the `Source IP Address/CIDR Ranges` field of the `AllowSSH` security rule. This will allow your Virtual Eye VM to open SSH Port 22 from your client.  Press `Save` when done:
 
