@@ -1,3 +1,6 @@
+# SSH Access to your Virtual Eye
+
+
 Your Virtual Azure Eye is a Mariner HCI image deployed as a VM into the Azure public cloud. This is the  same Mariner OS image as deployed in Azure Eye, however, in the public cloud it is Mariner for Intel x86, while for Azure Eye it is compiled for ARM64. Because it is the same image with the same pre-installed components, the Virtual Eye has the same operational semantics as the Physical Eye.
 
 
