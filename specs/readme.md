@@ -8,7 +8,7 @@ You can view the details on these two containers by visting the IoT Hub which wa
 
 ![](/images/IoT-Hub-Edge.png)
 #
-Once you click on the `azureEyeEdgeDevice`,  you will see this page. Click on the `camerastream` container at the bottom:
+Once you click on the `azureEyeEdgeDevice`,  you will see the page below. Click on the `camerastream` container at the bottom:
 
 ![](/images/IoT-Hub-Containers.png)
 #
