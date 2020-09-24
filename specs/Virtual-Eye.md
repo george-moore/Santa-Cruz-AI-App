@@ -14,7 +14,7 @@ You can directly access your Virtual Azure Eye in your subscription via SSH, how
 ![Eye VM](/images/Allow-SSH-Rule.PNG)
 
 
-You can now SSH into your Virtual Eye in the same manner as if you were on the same local subnet as your physical Azure Eye.  Your image password is `p@ssw0rd`
+You can now SSH into your Virtual Eye in the same manner as if you were on the same local subnet as your physical Azure Eye.  Your root password is `p@ssw0rd`, and you can see the list of IoT Edge containers running by executing the `iotedge list` command.  These are the same containers shown in your IoT Hub in the public cloud:
 
 ![Eye VM](/images/SSH-Bash.PNG)
 
