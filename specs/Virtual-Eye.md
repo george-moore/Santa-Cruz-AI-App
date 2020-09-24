@@ -16,8 +16,13 @@ Next, click on the `AllowSSH` rule that was created as a part of the original de
 
 #
 
+Now you must enter your own client device public IP address. There are many sites which can provide this, such as http://checkip.dyndns.org/
+
+Copy the IP address and place it into the `Source IP Address/CIDR Ranges` field of the `AllowSSH` security rule. This will allow your Virtual Eye VM to open SSH Port 22 from your client device.  Press `Save` when done:
+
 ![Eye VM](/images/Allow-SSH-Rule.PNG)
 
+#
 
 You can now SSH into your Virtual Eye in the same manner as if you were on the same local subnet as your physical Azure Eye.  Your root password is `p@ssw0rd`, and you can see the list of IoT Edge containers running by executing the `iotedge list` command.  These are the same containers shown in your IoT Hub in the public cloud:
 
