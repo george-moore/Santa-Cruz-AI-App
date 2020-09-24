@@ -24,3 +24,5 @@ You will then see the live configuration of the IoT Edge container in the device
 ![](/images/IoT-Hub-Identity-Twin-Details.png)
 #
 You can edit this configuration and the changes will be reflected in the device. For example, if you wished to use your own prerecorded video in the application, you can edit the `rtsp` field and change the `/camera-stream/video/sample-video.mp4` with your own video path which you previously placed on the device.  If you wished to change the frame rate of the AI inferencing, change the `interval` from 0.2 (5 frames per second) to a different value.
+
+Press `Save` and any changes will be automatically synchronized to the physical or virtual Eye devices.
