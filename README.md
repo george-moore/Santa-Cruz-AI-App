@@ -47,7 +47,7 @@ Once deployment is complete, you can launch the web application by navigating to
 
 ![Web Application](/images/Web-App-Launch.PNG)
 
-to enter the application you will need to supply the password you entered at deployment time.
+Once the application loads, you will need to enter the password you entered at deployment time. The password is cached for subsequent visits to the same application.
 
 
 
