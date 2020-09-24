@@ -43,7 +43,7 @@ To deploy an emulation environment in the cloud, please enter the following para
 * __Module Runtime__ = CPU - Only CPU-based AI inferencing in emulation is supported at this time. Movidius Myriad X is coming soon!
 * __Password__ = A password to protect access to the web app which visualizes your output. A best practice is to assign a password to prevent others on the internet from seeing the testing output of your Santa Cruz AI device.
 
-Once deployment is complete, you can launch the web application by navigating to the *Resource Group IoT* name selected above. You will see an Azure Web Services deployment which starts with "ues-eyeapp" followed by 4 random digits. Select this app, then chose the "Browse" button in the top left:
+Once deployment is complete, you can launch the web application by navigating to the `Resource Group IoT` name selected above. You will see an Azure Web Services deployment which starts with `ues-eyeapp` followed by 4 random digits. Select this app, then chose the `Browse` button in the top left:
 
 ![Web Application](/images/Web-App-Launch.PNG)
 
