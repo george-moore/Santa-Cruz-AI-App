@@ -8,10 +8,13 @@ First, navigate to the `Resource Group Device` in your Azure Subscription from y
 
 ![Eye VM](/images/NSG.png)
 
-Next, click on the `Allow SSH` rule that was created as a part of the original deployment:
+#
+
+Next, click on the `AllowSSH` rule that was created as a part of the original deployment:
 
 ![Eye VM](/images/Allow-SSH.PNG)
 
+#
 
 ![Eye VM](/images/Allow-SSH-Rule.PNG)
 
