@@ -1,13 +1,13 @@
-# Open Source People Detector AI Application
+# Open Source People Counting AI Application
 
 
-Press this button to deploy the people detector application to either the Azure public cloud or your Santa Cruz AI device:
+Press this button to deploy the people counting application to either the Azure public cloud or your Santa Cruz AI device:
 
 [![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20200918.5%2Fazuredeploy-20200918.5.json)
 
 ### Overview
 
-This is an open source Santa Cruz AI application providing edge-based people detection. Video and AI output from the on-prem edge device is egressed to Azure Data Lake, with the user interface running as an Azure Website. AI inferencing is provided by an open source AI model for people detection:
+This is an open source Santa Cruz AI application providing edge-based people counting with user-defined zone entry/exit events. Video and AI output from the on-prem edge device is egressed to Azure Data Lake, with the user interface running as an Azure Website. AI inferencing is provided by an open source AI model for people detection:
 
 
 ![People Detector](/images/People-Detector-AI.gif)
