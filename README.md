@@ -39,7 +39,7 @@ This will redirect you to the Azure portal with this deployment page:
 
 To deploy an emulation environment in the cloud, please enter the following parameters:
 
-* __Resource Group IoT__ = Unique name of a new resource group to host your IoT Hub, Data Lake and Web App
+* __Resource Group IoT__ = Unique name of a new resource group to host your Azure IoT Hub, Data Lake and Web App
 * __Resource Group Device__ = Unique name of a new resource group to host the virtualized Santa Cruz AI device. This virtualized device connects to your Data Lake to store the AI and Video output.
 * __Device Architecture__ = X86 - Only x86-based devices is supported at this time. ARM64 is coming soon!
 * __Module Runtime__ = CPU - Only CPU-based AI inferencing in emulation is supported at this time. Movidius Myriad X is coming soon!
