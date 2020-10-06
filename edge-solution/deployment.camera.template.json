@@ -1,0 +1,155 @@
+{
+  "modulesContent": {
+    "$edgeAgent": {
+      "properties.desired": {
+        "modules": {
+          "camerastream": {
+            "version": "1.0",
+            "type": "docker",
+            "env" : {
+              "DISPLAY": {
+                "value": "$DISPLAY"
+              },
+              "QT_X11_NO_MITSHM": {
+                "value": "1"
+              }
+            },
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.CameraStream}",
+              "createOptions": {
+                "ExposedPorts" : {
+                  "56780/tcp": {}
+                },
+                "HostConfig": {
+                  "IpcMode": "shareable",
+                  "Binds": [
+                    "/tmp/.X11-unix:/tmp/.X11-unix",
+                    "/var/tmp/video:/tmp/video"
+                  ],
+                  "PortBindings": {
+                    "56780/tcp": [
+                      {
+                        "HostPort": "56780"
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "detector": {
+            "version": "1.0",
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always",
+            "settings": {
+              "image": "${MODULES.Detector}",
+              "createOptions": {
+                "ExposedPorts": {
+                  "5010/tcp": {},
+                  "56781/tcp": {}
+                },
+                "HostConfig": {
+                  "IpcMode": "container:camerastream",
+                  "Binds": [
+                    "/var/tmp/video:/tmp/video"
+                  ],
+                  "PortBindings": {
+                    "56781/tcp": [
+                      {
+                        "HostPort": "56781"
+                      }
+                    ]
+                  },
+                  "Runtime": "$RUNTIME",
+                  "ShmSize": 536870912
+                }
+              }
+            }
+          }
+        },
+        "runtime": {
+          "settings": {
+            "minDockerVersion": "v1.25",
+            "registryCredentials": {
+              "rtptofficial": {
+                "address": "$ACR_NAME",
+                "password": "$ACR_PASSWORD",
+                "username": "$ACR_USERNAME"
+              }
+            }
+          },
+          "type": "docker"
+        },
+        "schemaVersion": "1.0",
+        "systemModules": {
+          "edgeAgent": {
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-agent:1.0",
+              "createOptions": ""
+            },
+            "type": "docker"
+          },
+          "edgeHub": {
+            "settings": {
+              "image": "mcr.microsoft.com/azureiotedge-hub:1.0",
+              "createOptions": {
+                "HostConfig": {
+                  "PortBindings": {
+                    "443/tcp": [
+                      {
+                        "HostPort": "443"
+                      }
+                    ],
+                    "5671/tcp": [
+                      {
+                        "HostPort": "5671"
+                      }
+                    ],
+                    "8883/tcp": [
+                      {
+                        "HostPort": "8883"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "type": "docker",
+            "status": "running",
+            "restartPolicy": "always"
+          }
+        }
+      }
+    },
+    "$edgeHub": {
+      "properties.desired": {
+        "routes": {
+          "route": "FROM /messages/* INTO $upstream"
+        },
+        "schemaVersion": "1.0",
+        "storeAndForwardConfiguration": {
+          "timeToLiveSecs": 7200
+        }
+      }
+    },
+    "camerastream": {
+      "properties.desired": {
+        "blob": "$CAMERA_BLOB_SAS",
+        "shared_memory": true,
+        "cameras": {
+          "cam001": {
+            "space": "Office",
+            "rtsp": "$CROSSING_VIDEO_URL",
+            "detector": "$PEOPLE_DETECTOR",
+            "inference": true,
+            "interval": "$UPLOAD_FREQ_SEC",
+            "enabled": true
+          }
+        }
+      }
+    }
+  }
+}

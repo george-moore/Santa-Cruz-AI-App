@@ -1,0 +1,414 @@
+# This pipeline takes the cloudshell-deployment zip from build pipeline and releases it to a test environment.
+# It then releases it to blob storage account after manual approval
+
+
+trigger: none
+
+resources:
+  pipelines:
+  - pipeline: build
+    project: UnifiedEdgeScenarios
+    source: Build Cloud Shell Script
+    trigger:
+      enabled: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+
+variables:
+  buildSuffix: '$(Build.BuildNumber)' 
+  ${{ if eq(variables['Build.SourceBranchName'], 'release') }}:
+    Variable_Group: 'CloudShell_ReleaseEnvironment'
+  ${{ if ne(variables['Build.SourceBranchName'], 'release') }}:
+     Variable_Group: 'CloudShell_TestEnvrionment'
+
+stages:
+- stage: 'Deploy'
+  jobs:
+  - job: 'Deploy'
+    variables:
+     - group: ${{variables.Variable_Group}}
+    displayName: 'Deploy Person Tracking App to a test environment'
+    steps:
+    - checkout: none
+    - download: none
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Delete existing resource groups'
+      env:
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Logging to Azure"
+                          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          if [ "$RESOURCE_GROUP_DEVICE" == "$RESOURCE_GROUP_IOT" ]; then
+              if [ "$(az group exists --name "$RESOURCE_GROUP_DEVICE")" == false ]; then
+                echo "Resource Group \"$RESOURCE_GROUP_DEVICE\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+              else
+                echo "Resource Group for \"$RESOURCE_GROUP_DEVICE\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_DEVICE\""
+              fi  
+          else    
+            if [ "$(az group exists --name "$RESOURCE_GROUP_DEVICE")" == false ]; then
+                echo "Resource Group for Mariner VM \"$RESOURCE_GROUP_DEVICE\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+            else
+                echo "Resource Group for Mariner VM \"$RESOURCE_GROUP_DEVICE\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_DEVICE\""
+                az group delete --resource-group "$RESOURCE_GROUP_DEVICE" --subscription "$SUBSCRIPTION_ID" --yes
+                echo "Deleted Resource Group \"$RESOURCE_GROUP_DEVICE\""
+            fi
+          
+            if [ "$(az group exists --name "$RESOURCE_GROUP_IOT")" == false ]; then
+                echo "Resource Group for IoT Hub \"$RESOURCE_GROUP_IOT\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+            else
+                echo "Resource Group for IoT Hub \"$RESOURCE_GROUP_IOT\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_IOT\""
+                az group delete --resource-group "$RESOURCE_GROUP_IOT" --subscription "$SUBSCRIPTION_ID" --yes
+                echo "Deleted Resource Group \"$RESOURCE_GROUP_IOT\""
+            fi
+          fi  
+
+    - task: DownloadPipelineArtifact@2
+      enabled: true
+      displayName: 'Download artifacts from Build Pipeline'
+      inputs:
+        buildType: 'specific'
+        project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
+        definition: '3'
+        buildVersionToDownload: 'latest'
+        targetPath: '$(System.DefaultWorkingDirectory)'
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Upload the cloudshell deployment scripts to temporary container in storage account'
+      env:
+        RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Exit the script on any error
+          set -e
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          CONTAINER=$(az storage container exists --name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME" --account-name "$RELEASE_STORAGE_ACCOUNT_NAME" --account-key "$RELEASE_STORAGE_ACCOUNT_KEY" -o tsv)
+          
+          if [ "$CONTAINER" == "False" ]; then
+            echo "Creating temp container \"$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME\" for cloudshell deployment scripts in storage account"
+          
+            az storage container create \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME"
+          
+            az storage container set-permission \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME" \
+            --public-access blob
+          
+            echo "Created temp container \"$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME\" for cloudshell deployment scripts in storage account"
+          fi
+          
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME" \
+            --file deployment-bundle.zip \
+            --name deployment-bundle.zip
+          
+          unzip deployment-bundle.zip -d .
+        workingDirectory: '$(System.DefaultWorkingDirectory)/deployment-bundle'
+    
+    - task: Bash@3
+      enabled: true
+      displayName: 'Prerequisite software installation'
+      inputs:
+        targetType: 'inline'
+        script: |
+          sudo apt install -y curl
+          sudo apt install -y jq
+          sudo apt install -y timeout
+          sudo apt install -y wget
+          sudo apt install -y sshpass
+          sudo apt install -y python-pip
+
+          INSTALL_IOTEDGEDEV="true"
+          if [ ! -z "$(command -v iotedgedev)" ]; then
+            currentVersion=$(iotedgedev --version | cut -d ' ' -f3)
+            requiredVersion="2.1.4"
+            # Sort the current version and required version to get the lowest of the two and then then compare it with required version
+            if [ "$(printf '%s\n' "$currentVersion" "$requiredVersion" | sort -V | head -n1)" == "$requiredVersion" ]; then
+              # Current installed iotedgedev version is higher than required, no need to re-install
+              INSTALL_IOTEDGEDEV="false"
+            fi
+          fi
+
+          if [ "$INSTALL_IOTEDGEDEV" == "true" ]; then
+            echo "$(info) Installing iotedgedev"
+            sudo pip install iotedgedev==2.1.4
+          fi
+
+          if [[ $(az extension list --query "[?name=='azure-iot'].name" --output tsv | wc -c) -eq 0 ]]; then
+            echo "$(info) Installing azure-iot extension"
+            az extension add --name azure-iot
+          fi
+
+          INSTALL_AZCOPY="true"
+          if [ -n "$(command -v azcopy)" ]; then
+            currentVersion=$(sudo azcopy --version | cut -d ' ' -f3)
+            requiredVersion="10.5.1"
+            # Sort the current version and required version to get the lowest of the two and then then compare it with required version
+            if [ "$(printf '%s\n' "$currentVersion" "$requiredVersion" | sort -V | head -n1)" == "$requiredVersion" ]; then
+              # Current installed azcopy version is higher than required, no need to re-install
+              INSTALL_AZCOPY="false"
+            fi
+          fi
+  
+          if [ "$INSTALL_AZCOPY" == "true" ]; then
+  
+            echo "$(info) Installing AzCopy"
+
+            CURRENT_DIRECTORY="$PWD"
+            wget https://aka.ms/downloadazcopy-v10-linux -O downloadazcopy-v10-linux
+            # unzipping the downloaded archive
+            tar -xvf downloadazcopy-v10-linux
+            # changing directory to fetch the azcopy executable
+            cd azcopy_linux*/
+            # Add azcopy to /usr/bin directory
+            sudo cp azcopy /usr/bin/
+            # Return to original directory
+            cd "$CURRENT_DIRECTORY"
+            # Remove the downloaded files
+            rm azcopy_linux* -r
+            rm downloadazcopy-v10-linux
+
+            echo "$(info) Installed AzCopy "
+          fi
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Run cloudshell-deployment.sh script'
+      env:
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Starting task"
+
+          echo "Updating sas url for deployment bundle zip"
+          SCRIPTS_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME}/deployment-bundle.zip"
+          sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$SCRIPTS_URL"'\"#g' "cloudshell-deployment.sh"
+          echo "Updated sas url for deployment bundle zip"
+
+          # Exit the inline script on any erros
+          set -e
+
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+
+          echo "Setting the distribution envrionment to cloudshell for skipping login step"
+          export POWERSHELL_DISTRIBUTION_CHANNEL="CloudShell"
+
+          echo "Running cloudshell-deployment.sh script"
+          
+          sudo bash ./cloudshell-deployment.sh --create-iothub --device-runtime "$DETECTOR_MODULE_RUNTIME" --website-password "$PASSWORD_FOR_WEBSITE_LOGIN" --rg-iot "$RESOURCE_GROUP_IOT" --device-architecture "$EDGE_DEVICE_ARCHITECTURE" --rg-vm "$RESOURCE_GROUP_DEVICE"
+          
+          echo "Task is complete"
+        workingDirectory: '$(System.DefaultWorkingDirectory)/CloudshellDeployment-Script'
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Delete temporary container for cloudshell deployment scripts in storage account'
+      env:
+        RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          CONTAINER=$(az storage container exists --name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME" --account-name "$RELEASE_STORAGE_ACCOUNT_NAME" --account-key "$RELEASE_STORAGE_ACCOUNT_KEY" -o tsv)
+          
+          if [ "$CONTAINER" == "True" ]; then
+            echo "Deleting temp container  \"$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME\" for cloudshell deployment scripts"
+            az storage container delete \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME"
+
+            echo "Deleted temp container  \"$RELEASE_STORAGE_ACCOUNT_TEMP_CONTAINER_NAME\" for cloudshell deployment scripts"
+          fi
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Run smoke test'
+      env:
+        SP_APP_PWD: $(SP_APP_PWD)
+        EDGE_DEVICE_PASSWORD: $(EDGE_DEVICE_PASSWORD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Exit the script on any error
+          set -e
+          
+          cd deployment-bundle-latest
+          
+          echo "Delaying execution of smoketest script by 10 minutes to allow IoTEdge modules to start"
+          sleep 10m
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          echo "Running smoketest script"
+          
+          source "./smoketest.sh"
+          
+          echo "Task is complete"
+        workingDirectory: '$(System.DefaultWorkingDirectory)/CloudshellDeployment-Script'
+
+- stage: Release
+  jobs:
+  - deployment: 'Release'
+    displayName: 'Release bundle zip to storage account'
+    environment: 'ApproveCloudShellRelease'
+    variables:
+      - group: ${{variables.Variable_Group}}
+    strategy:
+      runOnce:
+        deploy:
+          steps: 
+          - checkout: none
+          - download: none
+
+          - task: DownloadPipelineArtifact@2
+            enabled: true
+            displayName: 'Download artifacts from Build Pipeline'
+            inputs:
+              buildType: 'specific'
+              project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
+              definition: '3'
+              buildVersionToDownload: 'latest'
+              targetPath: '$(System.DefaultWorkingDirectory)'
+
+          - task: Bash@3
+            enabled: true
+            displayName: 'Upload the deployment bundle zip to release storage account'
+            env:
+              RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+              SP_APP_PWD: $(SP_APP_PWD)
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Logging into Azure"
+                
+                az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+
+                CONTAINER=$(az storage container exists --name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" --account-name "$RELEASE_STORAGE_ACCOUNT_NAME" --account-key "$RELEASE_STORAGE_ACCOUNT_KEY" -o tsv)
+                
+                if [ "$CONTAINER" == "False" ];then
+                  echo "Creating container \"RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME\" in storage account"
+                  
+                  az storage container create \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                
+                  az storage container set-permission \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                  --public-access blob
+                fi
+                
+                echo "Uploading deployment bundle zip to storage account"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                  --file deployment-bundle.zip \
+                  --name "$(buildSuffix)/deployment-bundle.zip"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                  --file deployment-bundle.zip \
+                  --name deployment-bundle.zip
+                
+                cd '$(System.DefaultWorkingDirectory)/CloudshellDeployment-Script'
+
+                echo "Updating sas url for deployment bundle zip"
+                SCRIPTS_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME}/deployment-bundle.zip"
+                sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$SCRIPTS_URL"'\"#g' "cloudshell-deployment.sh"
+                echo "Updated sas url for deployment bundle zip"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                  --file cloudshell-deployment.sh \
+                  --name "cloudshell-deployment.sh"
+                
+                echo "Updating sas url for deployment bundle zip"
+                SCRIPTS_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME}/$(buildSuffix)/deployment-bundle.zip"
+                sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$SCRIPTS_URL"'\"#g' "cloudshell-deployment.sh"
+                echo "Updated sas url for deployment bundle zip"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_CONTAINER_NAME" \
+                  --file cloudshell-deployment.sh \
+                  --name "$(buildSuffix)/cloudshell-deployment.sh"
+              workingDirectory: '$(System.DefaultWorkingDirectory)/deployment-bundle'
+
+          - task: Bash@3
+            enabled: true
+            displayName: 'Delete the resource group'
+            env:
+              SP_APP_PWD: $(SP_APP_PWD)
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Exit the script on any error
+                set -e
+                
+                echo "Logging to Azure"
+                
+                az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+                
+                if [ "$RESOURCE_GROUP_DEVICE" == "$RESOURCE_GROUP_IOT" ]; then
+                  echo "Deleting resource group \"$RESOURCE_GROUP_DEVICE\""
+
+                  az group delete --resource-group "$RESOURCE_GROUP_DEVICE" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_DEVICE\""
+                else
+                  echo "Deleting resource group for Mariner VM \"$RESOURCE_GROUP_DEVICE\""
+                  
+                  az group delete --resource-group "$RESOURCE_GROUP_DEVICE" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_DEVICE\""
+                  
+                  echo "Deleting resource group for IoT Hub \"$RESOURCE_GROUP_IOT\""
+                  
+                  az group delete --resource-group "$RESOURCE_GROUP_IOT" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_IOT\""
+                fi  

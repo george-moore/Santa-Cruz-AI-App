@@ -1,0 +1,5 @@
+{
+    "arch": "amd64",
+    "imageName": "<container-registry>/amp-viewer",
+    "versionTag": "latest"
+}

@@ -1,0 +1,11 @@
+config/
+*.log
+.ipynb_checkpoints/
+.vscode/
+build/
+__pycache__/
+obj/
+bin/
+.vs/
+ASALocalRun/
+sandbox/

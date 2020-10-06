@@ -1,0 +1,12 @@
+numpy
+decorator == 4.4.0
+imutils == 0.5.3
+azure-iot-device ~= 2.1.2
+azure-storage-blob
+setuptools
+ptvsd==4.1.3
+requests
+Flask
+pyyaml 
+protobuf
+grpcio

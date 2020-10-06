@@ -1,0 +1,542 @@
+# CI disabled
+trigger: none
+
+# Trigger after completion of Build ARM Template Pipeline
+resources:
+  pipelines:
+  - pipeline: build
+    project: UnifiedEdgeScenarios
+    source: Build ARM Template
+    trigger:
+      enabled: true
+
+pool: 
+  vmImage: 'ubuntu-latest'
+
+variables:
+  buildSuffix: '$(Build.BuildNumber)' 
+  ${{ if eq(variables['Build.SourceBranchName'], 'release') }}:
+    Variable_Group: 'ARMTemplate_ReleaseEnvironment'
+  ${{ if ne(variables['Build.SourceBranchName'], 'release') }}:
+     Variable_Group: 'ARMTemplate_TestEnvironment'
+
+
+stages:
+- stage: 'Deploy'
+  jobs:
+  - job: 'Deploy'
+    variables:
+     - group: ${{variables.Variable_Group}}
+    displayName: 'Deploy ARM Template to a test environment'
+    steps:
+    - checkout: self
+
+    - task: Bash@3
+      enabled: true
+      displayName: 'Delete existing resource groups'
+      env:
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Logging to Azure"
+                          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          if [ "$RESOURCE_GROUP_DEVICE_ARM" == "$RESOURCE_GROUP_IOT_ARM" ]; then
+              if [ "$(az group exists --name "$RESOURCE_GROUP_DEVICE_ARM")" == false ]; then
+                echo "Resource Group \"$RESOURCE_GROUP_DEVICE_ARM\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+              else
+                echo "Resource Group for \"$RESOURCE_GROUP_DEVICE_ARM\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_DEVICE_ARM\""
+              fi  
+          else    
+            if [ "$(az group exists --name "$RESOURCE_GROUP_DEVICE_ARM")" == false ]; then
+                echo "Resource Group for Mariner VM \"$RESOURCE_GROUP_DEVICE_ARM\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+            else
+                echo "Resource Group for Mariner VM \"$RESOURCE_GROUP_DEVICE_ARM\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_DEVICE_ARM\""
+                az group delete --resource-group "$RESOURCE_GROUP_DEVICE_ARM" --subscription "$SUBSCRIPTION_ID" --yes
+                echo "Deleted Resource Group \"$RESOURCE_GROUP_DEVICE_ARM\""
+            fi
+          
+            if [ "$(az group exists --name "$RESOURCE_GROUP_IOT_ARM")" == false ]; then
+                echo "Resource Group for IoT Hub \"$RESOURCE_GROUP_IOT_ARM\" does not exist in current subscription."
+                echo "Skipping deletion of resource group"
+            else
+                echo "Resource Group for IoT Hub \"$RESOURCE_GROUP_IOT_ARM\" exists in current subscription."
+                echo "Deleting Resource Group \"$RESOURCE_GROUP_IOT_ARM\""
+                az group delete --resource-group "$RESOURCE_GROUP_IOT_ARM" --subscription "$SUBSCRIPTION_ID" --yes
+                echo "Deleted Resource Group \"$RESOURCE_GROUP_IOT_ARM\""
+            fi
+          fi  
+
+    - task: DownloadPipelineArtifact@2
+      enabled: true
+      displayName: 'Download artifacts from Build ARM Template Pipeline'
+      inputs:
+        buildType: 'specific'
+        project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
+        definition: '1'
+        buildVersionToDownload: 'latest'
+        targetPath: '/home/vsts/work/1/s'
+
+    - task: Bash@3
+      displayName: 'Update ARM template and scripts with temporary blob container links'
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Exit the script on any error
+          
+          echo "Extracting files from artifact zip"
+           
+          unzip arm-deployment-bundle.zip -d .
+          
+          echo "Updating links in ARM template and scripts to point to temporary container in blob storage"
+          
+          STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME="$RELEASE_STORAGE_ACCOUNT_TEMP_ARM_CONTAINER_NAME"
+          
+          MANIFEST_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/manifest-bundle.zip"
+          sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$MANIFEST_URL"'\"#g' "deploy-modules.sh"
+          
+          IS_JQ_INSTALLED=$(apt list --installed | grep -c -w jq)
+          if [ "$IS_JQ_INSTALLED" -eq 0 ]; then
+              echo "Installing jq"
+              sudo apt-get install jq
+              echo "Installed jq"
+          fi
+          
+          echo "Updating Primary scripts Url for deploymentScript in arm template"
+          
+          SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/disk-setup.sh"
+          jq --arg a "$SCRIPT_URL" '.resources[5].properties.template.resources[1].properties.primaryScriptUri = $a' azuredeploy.json > "tmp" && mv "tmp" azuredeploy.json
+          
+          SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/create-setup-iot-edge-device.sh"
+          jq --arg a "$SCRIPT_URL" '.resources[6].properties.template.resources[1].properties.primaryScriptUri = $a' azuredeploy.json > "tmp" && mv "tmp" azuredeploy.json
+          
+          SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/deploy-modules.sh"
+          jq --arg a "$SCRIPT_URL" '.resources[7].properties.template.resources[5].properties.primaryScriptUri = $a' azuredeploy.json > "tmp" && mv "tmp" azuredeploy.json
+          
+          SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/people-detection-app.zip"
+          jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' azuredeploy.json > "tmp" && mv "tmp" azuredeploy.json
+          
+          echo "Updated Primary scripts Url for deploymentScript in arm template"
+        workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+    - task: Bash@3
+      enabled: true
+      displayName: 'Upload the ARM template scripts to temporary container in storage account'
+      env:
+        RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          # Exit the script on any error
+          set -e
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME="$RELEASE_STORAGE_ACCOUNT_TEMP_ARM_CONTAINER_NAME"
+          
+          CONTAINER=$(az storage container exists --name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" --account-name "$RELEASE_STORAGE_ACCOUNT_NAME" --account-key "$RELEASE_STORAGE_ACCOUNT_KEY" -o tsv)
+          
+          if [ "$CONTAINER" == "False" ]; then
+            echo "Creating temp container \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\" for arm template scripts in storage account"
+          
+            az storage container create \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME"
+          
+            az storage container set-permission \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --public-access blob
+          
+            echo "Created temp container \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\" for arm template scripts in storage account"
+          fi
+          
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --file disk-setup.sh \
+            --name disk-setup.sh
+          
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --file create-setup-iot-edge-device.sh \
+            --name create-setup-iot-edge-device.sh
+          
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --file deploy-modules.sh \
+            --name deploy-modules.sh
+          
+          echo "Scripts are uploaded to temp storage account container \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\""
+          
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --file manifest-bundle.zip \
+            --name manifest-bundle.zip
+          
+          # Upload WebApp zip code to temp storage account
+          az storage blob upload \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
+            --file people-detection-app.zip \
+            --name people-detection-app.zip
+        workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+    
+
+    - task: AzureResourceManagerTemplateDeployment@3
+      inputs:
+        deploymentScope: 'Subscription'
+        azureResourceManagerConnection: 'AED E2E Subscription'
+        subscriptionId: '7c9469c0-29ac-424a-85ab-d01f2cea1c38'
+        location: 'East US'
+        templateLocation: 'Linked artifact'
+        csmFile: '/home/vsts/work/1/s/arm-deployment-bundle/azuredeploy.json'
+        overrideParameters: '-resourceGroupIot "$(RESOURCE_GROUP_IOT_ARM)" -resourceGroupDevice "$(RESOURCE_GROUP_DEVICE_ARM)" -deviceArchitecture "$(DEVICE_ARCHITECTURE)" -moduleRuntime "$(MODULE_RUNTIME)" -password "$(PASSWORD)" -useExistingEdgeDevice "$(USE_EXISTING_EDGE_DEVICE)"'
+        deploymentMode: 'Incremental'
+    - task: Bash@3
+      enabled: true
+      displayName: 'Delete temporary container for arm template scripts in storage account'
+      env:
+        RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+          echo "Logging into Azure"
+          
+          az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+          
+          STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME="$RELEASE_STORAGE_ACCOUNT_TEMP_ARM_CONTAINER_NAME"
+          CONTAINER=$(az storage container exists --name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" --account-name "$RELEASE_STORAGE_ACCOUNT_NAME" --account-key "$RELEASE_STORAGE_ACCOUNT_KEY" -o tsv)
+          
+          if [ "$CONTAINER" == "True" ]; then
+            echo "Deleting temp container  \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\" for arm template scripts"
+            az storage container delete \
+            --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+            --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+            --name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME"
+
+            echo "Deleted temp container  \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\" for arm template scripts"
+          fi
+        workingDirectory: '/home/vsts/work/1/s'
+
+
+- stage: Release
+  jobs:
+  - deployment: 'Release'
+    displayName: 'Release ARM Template to storage account'
+    environment: 'ApproveARMRelease'
+    variables:
+      - group: ${{variables.Variable_Group}}
+    strategy:
+      runOnce:
+        deploy:
+          steps: 
+          - checkout: self
+
+
+          - task: Bash@3
+            enabled: true
+            displayName: 'Delete the resource groups of test environment'
+            env:
+              SP_APP_PWD: $(SP_APP_PWD)
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Exit the script on any error
+                set -e
+                
+                echo "Logging to Azure"
+                
+                az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+                
+                if [ "$RESOURCE_GROUP_DEVICE_ARM" == "$RESOURCE_GROUP_IOT_ARM" ]; then
+                  echo "Deleting resource group \"$RESOURCE_GROUP_DEVICE_ARM\""
+
+                  az group delete --resource-group "$RESOURCE_GROUP_DEVICE_ARM" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_DEVICE_ARM\""
+                else
+                  echo "Deleting resource group for Mariner VM \"$RESOURCE_GROUP_DEVICE_ARM\""
+                  
+                  az group delete --resource-group "$RESOURCE_GROUP_DEVICE_ARM" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_DEVICE_ARM\""
+                  
+                  echo "Deleting resource group for IoT Hub \"$RESOURCE_GROUP_IOT_ARM\""
+                  
+                  az group delete --resource-group "$RESOURCE_GROUP_IOT_ARM" --yes --no-wait
+                  
+                  echo "Triggered deletion of resource group \"$RESOURCE_GROUP_IOT_ARM\""
+                fi  
+          - task: DownloadPipelineArtifact@2
+            enabled: true
+            displayName: 'Download artifacts from Build ARM Template Pipeline'
+            inputs:
+              buildType: 'specific'
+              project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
+              definition: '1'
+              buildVersionToDownload: 'latest'
+              targetPath: '/home/vsts/work/1/s'
+
+          - task: Bash@3
+            displayName: 'Update links in versioned ARM template and scripts'
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Exit the script on any error
+                
+                echo "Extracting files from artifact zip"
+                 
+                unzip arm-deployment-bundle.zip -d .
+                
+                
+                DEPLOY_MODULES_FILENAME="deploy-modules-$(buildSuffix).sh"
+                ARM_TEMPLATE_FILENAME="azuredeploy-$(buildSuffix).json"
+                
+                cp azuredeploy.json "$ARM_TEMPLATE_FILENAME"
+                
+                cp deploy-modules.sh "$DEPLOY_MODULES_FILENAME"
+                
+                echo "Updating links in versioned ARM template for and scripts"
+                
+                STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME="$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME/$(buildSuffix)"
+                
+                MANIFEST_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/manifest-bundle.zip"
+                sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$MANIFEST_URL"'\"#g' "$DEPLOY_MODULES_FILENAME"
+                
+                IS_JQ_INSTALLED=$(apt list --installed | grep -c -w jq)
+                if [ "$IS_JQ_INSTALLED" -eq 0 ]; then
+                    echo "Installing jq"
+                    sudo apt-get install jq
+                    echo "Installed jq"
+                fi
+                
+                echo "Updating Primary scripts Url for deploymentScript in arm template"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/disk-setup.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[5].properties.template.resources[1].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/create-setup-iot-edge-device.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[6].properties.template.resources[1].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/deploy-modules.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[7].properties.template.resources[5].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/people-detection-app.zip"
+                jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                echo "Updated Primary scripts Url for deploymentScript in arm template"
+              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+
+          - task: Bash@3
+            displayName: 'Update links in ARM template and scripts'
+            inputs:
+              targetType: 'inline'
+              script: |
+                # Exit the script on any error
+                
+                
+                DEPLOY_MODULES_FILENAME="deploy-modules.sh"
+                ARM_TEMPLATE_FILENAME="azuredeploy.json"
+                
+                
+                echo "Updating links in ARM template for and scripts"
+                
+                STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME="$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME"
+                
+                MANIFEST_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/manifest-bundle.zip"
+                sed -i 's#^\(SAS_URL[ ]*=\).*#\1\"'"$MANIFEST_URL"'\"#g' "$DEPLOY_MODULES_FILENAME"
+                
+                IS_JQ_INSTALLED=$(apt list --installed | grep -c -w jq)
+                if [ "$IS_JQ_INSTALLED" -eq 0 ]; then
+                    echo "Installing jq"
+                    sudo apt-get install jq
+                    echo "Installed jq"
+                fi
+                
+                echo "Updating Primary scripts Url for deploymentScript in arm template"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/disk-setup.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[5].properties.template.resources[1].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/create-setup-iot-edge-device.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[6].properties.template.resources[1].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/deploy-modules.sh"
+                jq --arg a "$SCRIPT_URL" '.resources[7].properties.template.resources[5].properties.primaryScriptUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                SCRIPT_URL="https://${RELEASE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net/${STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME}/people-detection-app.zip"
+                jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
+                
+                echo "Updated Primary scripts Url for deploymentScript in arm template"
+              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+          - task: Bash@3
+            enabled: true
+            displayName: 'Upload the ARM templates and scripts to release storage account'
+            env:
+              RELEASE_STORAGE_ACCOUNT_KEY: $(RELEASE_STORAGE_ACCOUNT_KEY)
+              SP_APP_PWD: $(SP_APP_PWD)
+            inputs:
+              targetType: 'inline'
+              script: |
+                echo "Logging into Azure"
+                
+                az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+                
+                if [ "$CREATE_NEW_CONTAINER" == "true" ];then
+                  echo "Creating container \"$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME\" in storage account"
+                  
+                  az storage container create \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                
+                  az storage container set-permission \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --public-access blob
+                fi
+                
+                
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file disk-setup.sh \
+                  --name disk-setup.sh
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file disk-setup.sh \
+                  --name "$(buildSuffix)/disk-setup.sh"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/disk-setup.sh"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file create-setup-iot-edge-device.sh \
+                  --name create-setup-iot-edge-device.sh
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file create-setup-iot-edge-device.sh \
+                  --name "$(buildSuffix)/create-setup-iot-edge-device.sh"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/create-setup-iot-edge-device.sh"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file deploy-modules.sh \
+                  --name deploy-modules.sh
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file deploy-modules-$(buildSuffix).sh \
+                  --name "$(buildSuffix)/deploy-modules.sh"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/deploy-modules.sh"
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file manifest-bundle.zip \
+                  --name "manifest-bundle.zip"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file manifest-bundle.zip \
+                  --name "$(buildSuffix)/manifest-bundle.zip"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/manifest-bundle.zip"
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file people-detection-app.zip \
+                  --name people-detection-app.zip
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file people-detection-app.zip \
+                  --name "$(buildSuffix)/people-detection-app.zip"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/people-detection-app.zip"
+                
+                echo "Uploading ARM template to storage account"
+                
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file azuredeploy-$(buildSuffix).json \
+                  --name "$(buildSuffix)/azuredeploy-$(buildSuffix).json"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/azuredeploy-$(buildSuffix).json"
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file azuredeploy.json \
+                  --name azuredeploy-latest.json
+              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'

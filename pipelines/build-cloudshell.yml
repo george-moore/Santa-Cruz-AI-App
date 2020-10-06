@@ -1,0 +1,170 @@
+# This pipeline builds a zip for cloudshell-deployment and publishes this zip as an artifact.
+
+# Trigger build only for changes in specific folders
+trigger:
+  batch: true
+  paths:
+    include:
+    - deployment/cloudshell
+    - edge-solution
+    - pipelines/build-cloudshell.yml
+    - pipelines/deploy-cloudshell.yml
+
+# Build after completion of Release WebApp
+resources:
+  pipelines:
+  - pipeline: build
+    project: UnifiedEdgeScenarios
+    source: Release ues-app
+    trigger:
+      enabled: true
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+stages:
+- stage: PublishArtifacts
+  jobs:
+  - job: 'Download_and_bundle'
+    steps:
+    - checkout: self
+      path: s/UnifiedEdge
+    - download: none
+
+    - task: DownloadPipelineArtifact@2
+      inputs:
+        buildType: 'specific'
+        project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
+        definition: '6'
+        buildVersionToDownload: 'latest'
+        artifactName: 'ues_app'
+        targetPath: '$(Pipeline.Workspace)'
+    
+    - task: CopyFiles@2
+      displayName: 'Copy App Files to a combined folder'
+      inputs:
+        SourceFolder: '$(Pipeline.Workspace)'
+        Contents: people-detection-app.zip
+        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+
+
+    # Copy all the required files for deployment to a folder
+    - task: CopyFiles@2
+      displayName: 'Copy Files to a combined folder'
+      inputs:
+        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        Contents: |
+          README.md 
+          edge-solution/modules/CameraStream/camera-stream/video/staircase.mp4
+          edge-solution/deployment.camera.template.json
+          edge-solution/.env
+          deployment/cloudshell/eye-vm-setup.sh
+          deployment/cloudshell/deploy-iot.sh
+          deployment/cloudshell/variables.template
+          deployment/cloudshell/frontend-setup.sh
+          deployment/cloudshell/smoketest.sh
+        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        flattenFolders: true
+
+    - task: CopyFiles@2
+      displayName: 'Copy CameraStream module to a combined folder'
+      inputs:
+        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        Contents: |
+          edge-solution/modules/CameraStream/module.json
+        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined/modules/CameraStream'
+        flattenFolders: true
+
+    - task: CopyFiles@2
+      displayName: 'Copy Detector module to a combined folder'
+      inputs:
+        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        Contents: |
+          edge-solution/modules/Detector/module.json
+        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined/modules/Detector'
+        flattenFolders: true
+
+    - task: CopyFiles@2
+      displayName: 'Copy docs to a combined folder'
+      inputs:
+        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        Contents: |
+          docs/*
+        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+
+    - task: Bash@3
+      displayName: 'ShellCheck validation'
+      inputs:
+        targetType: 'inline'
+        script: |
+          
+          IS_SHELLCHECK_INSTALLED=$(apt list --installed | grep -c -w shellcheck)
+          if [ "$IS_SHELLCHECK_INSTALLED" -eq 0 ]; then
+              echo "Installing shellcheck"
+              sudo apt-get install shellcheck
+              echo "Installed shellcheck"
+          fi
+          
+          # Change directory location to combined folder
+          cd '/home/vsts/work/1/s/UnifiedEdge/combined'
+          
+          # Run shellcheck, Shellcheck will return a list of warnings if the script is not complient with all the rules
+          # We are checking the the result returned by shellcheck.
+          SHELL_CHECK_RESULT_DEPLOY_IOT=$(shellcheck ./deploy-iot.sh -x)
+          SHELL_CHECK_RESULT_FRONTEND=$(shellcheck ./frontend-setup.sh -x)
+          SHELL_CHECK_RESULT_EYE_VM=$(shellcheck ./eye-vm-setup.sh -x)
+          SHELL_CHECK_RESULT_SMOKETEST=$(shellcheck ./smoketest.sh -x)
+
+          # Change directory location to cloudshell script
+          cd '/home/vsts/work/1/s/UnifiedEdge/deployment/cloudshell'
+
+          SHELL_CHECK_RESULT_CLOUDSHELL=$(shellcheck ./cloudshell-deployment.sh -x)
+          if [ -z "$SHELL_CHECK_RESULT_DEPLOY_IOT" ] && [ -z "$SHELL_CHECK_RESULT_FRONTEND" ] && [ -z "$SHELL_CHECK_RESULT_EYE_VM" ] && [ -z "$SHELL_CHECK_RESULT_SMOKETEST" ] && [ -z "$SHELL_CHECK_RESULT_CLOUDSHELL" ]; then
+              echo "Pass: There are no warnings from shellcheck"
+          else
+              if [ ! -z "$SHELL_CHECK_RESULT_DEPLOY_IOT" ]; then
+              echo "The following are the warnings for deploy-iot script"
+              echo "$SHELL_CHECK_RESULT_DEPLOY_IOT"
+              fi
+              if [ ! -z "$SHELL_CHECK_RESULT_FRONTEND" ]; then
+              echo "The following are the warnings for frontend-setup script"
+              echo "$SHELL_CHECK_RESULT_FRONTEND"
+              fi
+              if [ ! -z "$SHELL_CHECK_RESULT_EYE_VM" ]; then
+              echo "The following are the warnings for eye-vm-setup script"
+              echo "$SHELL_CHECK_RESULT_EYE_VM"
+              fi
+              if [ ! -z "$SHELL_CHECK_RESULT_SMOKETEST" ]; then
+              echo "The following are the warnings for smoketest script"
+              echo "$SHELL_CHECK_RESULT_SMOKETEST"
+              fi
+              if [ ! -z "$SHELL_CHECK_RESULT_CLOUDSHELL" ]; then
+              echo "Task failed"
+              echo "The following are the warnings for cloudshell-deployment script"
+              echo "$SHELL_CHECK_RESULT_CLOUDSHELL"
+              fi
+              exit 1
+          fi
+      
+    # Creating the deployment bundle zip from combined folder
+    - task: ArchiveFiles@2
+      inputs:
+        rootFolderOrFile: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        includeRootFolder: false
+        archiveType: 'zip'
+        archiveFile: '$(Build.ArtifactStagingDirectory)/deployment-bundle.zip'
+        replaceExistingArchive: true
+
+    # Publishing the pipeline artifact
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(Build.ArtifactStagingDirectory)/deployment-bundle.zip'
+        artifact: 'deployment-bundle'
+        publishLocation: 'pipeline'
+
+    # Publishing the pipeline artifact
+    - task: PublishPipelineArtifact@1
+      inputs:
+        targetPath: '$(System.DefaultWorkingDirectory)/deployment/cloudshell/cloudshell-deployment.sh'
+        artifact: 'CloudshellDeployment-Script'
+        publishLocation: 'pipeline'

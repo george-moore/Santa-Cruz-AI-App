@@ -1,0 +1,1044 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "resourceGroupIot": {
+            "type": "string",
+            "metadata": { 
+                "description": "Enter the name of resource group to be created for Iot Hub, Storage Account and Web App."
+            }
+        },
+        "resourceGroupDevice": {
+            "defaultValue": "",
+            "type": "string",
+            "metadata": {
+                "description": "Enter the name of resource group to be created for Edge device. It is required if 'Use Existing Edge Device' is set to 'No'. If a value is not provided here, the device will be created in 'Resource Group Iot' resource group"
+            }
+        },
+        "deviceArchitecture": {
+            "defaultValue": "X86",
+            "allowedValues": [
+                "X86",
+                "ARM64"
+            ],
+            "type": "string",
+            "metadata": {
+                "description": "Specify the architecture of the Edge Device. Currently supported values are 'X86' and 'ARM64'."
+            }
+        },
+        "moduleRuntime": {
+            "defaultValue": "CPU",
+            "allowedValues": [
+                "CPU",
+                "NVIDIA",
+                "MOVIDIUS"
+            ],
+            "type": "string",
+            "metadata": {
+                "description": "Select value for runtime for Detector module on Edge Device. Set it to 'CPU' to use CPU to run detector module. If the Edge Device has Nvidia GPU, set it to 'NVIDIA' to use GPU to run detector module or to use movidius set it to 'MOVIDIUS'."
+            }
+        },
+        "password": {
+            "defaultValue": "",
+            "type": "string",
+            "metadata": {
+                "description": "Specify the password for the web app."
+            }
+        },
+        "useExistingEdgeDevice": {
+			"defaultValue": "No",
+            "allowedValues": [
+                "Yes",
+                "No"
+            ],
+            "type": "string",
+            "metadata": {
+                "description": "Select whether you want to use an existing Edge device or create a new one"
+            }
+        },
+        "existingIotHubName": {
+            "defaultValue": "",
+            "type": "string",
+            "metadata": {
+                "description": "Enter the name of existing Iot Hub. This is required only if 'Use Existing Edge Device' is set to 'Yes'"
+            }
+        },
+        "existingDeviceName": {
+            "defaultValue": "",
+            "type": "string",
+            "metadata": {
+                "description": "Enter the name of existing IoT Edge device. This is required only if 'Use Existing Edge Device' is set to 'Yes'"
+            }
+        }
+    },
+    "variables": {
+        "location": "[deployment().location]",
+        "webappName": "[concat('ues-eyeapp',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
+        "appServiceName": "[concat('ues-eyeasp',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
+        "diskName": "mariner",
+        "deviceName": "[if(equals(parameters('existingDeviceName'), ''), 'azureEyeEdgeDevice', parameters('existingDeviceName'))]",
+        "networkSecurityGroupName": "default-NSG",
+        "vmName": "marinervm",
+        "nicName": "marinervmVMNic",
+        "virtualNetworkName": "MyVNET",
+        "subnetName": "Subnet",
+        "addressPrefix": "10.0.0.0/16",
+        "publicIPAddressName": "myPublicIP",
+        "resourceGroupDevice": "[parameters('resourceGroupIot')]",
+        "storageAccountName": "[concat('uesstorage',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
+        "iothublogic": "[if(equals(parameters('existingIotHubName'), ''), 'azureeyeiothub', parameters('existingIotHubName'))]",
+        "rgdeviceName": "[if(equals(parameters('resourceGroupDevice'), ''), parameters('resourceGroupIot'), parameters('resourceGroupDevice'))]",
+        "resourceDevice": "[if(equals(parameters('useExistingEdgeDevice'),'Yes'),'temp',variables('rgdeviceName'))]",
+        "rgDevice": "[if(equals(variables('resourceDevice'),'temp'),parameters('resourceGroupIot'),variables('rgdeviceName'))]",
+        "resourceGroupIot": "[if(equals(parameters('resourceGroupIot'), variables('resourceDevice')), 'storage', variables('resourceDevice'))]",
+        "iotHubName": "[if(equals(parameters('existingIotHubName'),variables('iothublogic')),parameters('existingIotHubName'),concat(variables('iothublogic'),substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4)))]",
+        "deploymentName": "[concat('eye-deployment',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
+        "managedIdentityName": "[concat('Managed_Identity',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
+        "managedIdentityResourceGroup": "[parameters('resourceGroupIot')]",
+        "customVideoSource": ""
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2020-06-01",
+            "name": "[variables('resourceGroupDevice')]",
+            "location": "[variables('location')]",
+            "properties": {}
+        },
+        {
+            "type": "Microsoft.Resources/resourceGroups",
+            "apiVersion": "2020-06-01",
+            "name": "[variables('resourceGroupIot')]",
+            "location": "[variables('location')]",
+            "properties": {},
+            "condition": "[not(equals(parameters('resourceGroupIot'),variables('rgDevice')))]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "CreatingManagedIdentity",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+                            "name": "[variables('managedIdentityName')]",
+                            "apiVersion": "2018-11-30",
+                            "location": "[variables('location')]"
+                        }
+                    ]
+                }
+            },
+            "resourceGroup": "[parameters('resourceGroupIot')]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "CreatingRoleAssignments",
+            "dependsOn": [
+                "CreatingManagedIdentity"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "parameters": {
+                    "managedIdentityName": {
+                        "value": "[variables('managedIdentityName')]"
+                    }
+                },
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "managedIdentityName": {
+                            "type": "String"
+                        }
+                    },
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2018-09-01-preview",
+                            "name": "[guid(concat(resourceGroup().id, 'contributor'))]",
+                            "properties": {
+                                "roleDefinitionId": "[concat(resourceGroup().id, '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                                "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), '2018-11-30').principalId]",
+                                "scope": "[resourceGroup().id]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        }
+                    ]
+                }
+            },
+            "resourceGroup": "[parameters('resourceGroupIot')]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "CreatingRoleAssignmentsDevice",
+            "dependsOn": [
+                "CreatingManagedIdentity"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "parameters": {
+                    "managedIdentityName": {
+                        "value": "[variables('managedIdentityName')]"
+                    },
+                    "rgDevice": {
+                        "value": "[variables('rgDevice')]"
+                    },
+                    "resourceGroupIot": {
+                        "value": "[parameters('resourceGroupIot')]"
+                    }
+                },
+                "template": {
+                    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "managedIdentityName": {
+                            "type": "String"
+                        },
+                        "rgDevice": {
+                            "type": "String"
+                        },
+                        "resourceGroupIot": {
+                            "type": "String"
+                        }
+                    },
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Authorization/roleAssignments",
+                            "apiVersion": "2018-09-01-preview",
+                            "name": "[guid(concat(resourceGroup().id, 'contributor', 'Device'))]",
+                            "properties": {
+                                "roleDefinitionId": "[concat('/subscriptions/' , subscription().subscriptionId , '/resourceGroups/', parameters('rgDevice'),  '/providers/Microsoft.Authorization/roleDefinitions/', 'b24988ac-6180-42a0-ab88-20f7382dd24c')]",
+                                "principalId": "[reference(resourceId(parameters('resourceGroupIot'),'Microsoft.ManagedIdentity/userAssignedIdentities', parameters('managedIdentityName')), '2018-11-30').principalId]",
+                                "scope": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', parameters('rgDevice'))]",
+                                "principalType": "ServicePrincipal"
+                            }
+                        }
+                    ]
+                }
+            },
+            "resourceGroup": "[variables('rgDevice')]",
+            "condition": "[not(equals(parameters('resourceGroupIot'),variables('rgDevice')))]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "VMDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups/', variables('rgDevice'))]",
+                "CreatingRoleAssignments",
+                "CreatingRoleAssignmentsDevice"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Compute/disks",
+                            "apiVersion": "2019-07-01",
+                            "name": "[variables('diskName')]",
+                            "location": "[variables('location')]",
+                            "sku": {
+                                "name": "Premium_LRS",
+                                "tier": "Premium"
+                            },
+                            "properties": {
+                                "osType": "Linux",
+                                "hyperVGeneration": "V2",
+                                "creationData": {
+                                    "createOption": "Upload",
+                                    "uploadSizeBytes": 68719477248
+                                },
+                                "diskIOPSReadWrite": 240,
+                                "diskMBpsReadWrite": 50,
+                                "encryption": {
+                                    "type": "EncryptionAtRestWithPlatformKey"
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Resources/deploymentScripts",
+                            "apiVersion": "2019-10-01-preview",
+                            "name": "Scriptforcopy",
+                            "dependsOn": [
+                                "[variables('diskName')]"
+                            ],
+                            "location": "[variables('location')]",
+                            "kind": "AzureCLI",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[concat(subscription().id,'/resourceGroups/', variables('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',variables('managedIdentityName'))]": {}
+                                }
+                            },
+                            "properties": {
+                                "forceUpdateTag": "1",
+                                "azCliVersion": "2.9.1",
+                                "primaryScriptUri": "https://unifiededgescenarios.blob.core.windows.net/arm-template/disk-setup.sh",
+                                "supportingScriptUris": [],
+                                "environmentVariables": [
+                                    {
+                                        "name": "RESOURCE_GROUP_DEVICE",
+                                        "value": "[variables('rgDevice')]"
+                                    },
+                                    {
+                                        "name": "DISK_NAME",
+                                        "value": "[variables('diskName')]"
+                                    }
+                                ],
+                                "retentionInterval": "P1D",
+                                "timeout": "PT15M",
+                                "containerSettings": {},
+                                "cleanupPreference": "OnSuccess"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/networkSecurityGroups",
+                            "apiVersion": "2019-08-01",
+                            "name": "[variables('networkSecurityGroupName')]",
+                            "location": "[variables('location')]"
+                        },
+                        {
+                            "type": "Microsoft.Network/publicIPAddresses",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('publicIPAddressName')]",
+                            "location": "[variables('location')]",
+                            "properties": {
+                                "publicIPAllocationMethod": "Dynamic"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/virtualNetworks",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('virtualNetworkName')]",
+                            "location": "[variables('location')]",
+                            "dependsOn": [
+                                "[variables('networkSecurityGroupName')]"
+                            ],
+                            "properties": {
+                                "addressSpace": {
+                                    "addressPrefixes": [
+                                        "[variables('addressPrefix')]"
+                                    ]
+                                },
+                                "subnets": [
+                                    {
+                                        "name": "[variables('subnetName')]",
+                                        "properties": {
+                                            "addressPrefix": "[variables('addressPrefix')]",
+                                            "networkSecurityGroup": {
+                                                "id": "[concat(subscription().id,'/resourceGroups/', variables('rgDevice'),'/providers/Microsoft.Network/networkSecurityGroups/', variables('networkSecurityGroupName'))]"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Network/networkInterfaces",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('nicName')]",
+                            "location": "[variables('location')]",
+                            "dependsOn": [
+                                "[variables('virtualNetworkName')]",
+                                "[variables('publicIPAddressName')]"
+                            ],
+                            "properties": {
+                                "ipConfigurations": [
+                                    {
+                                        "name": "ipconfig1",
+                                        "properties": {
+                                            "privateIPAllocationMethod": "Dynamic",
+                                            "publicIPAddress": {
+                                                "id": "[concat(subscription().id,'/resourceGroups/', variables('rgDevice'),'/providers/Microsoft.Network/publicIPAddresses/',variables('publicIPAddressName'))]"
+                                            },
+                                            "subnet": {
+                                                "id": "[concat(subscription().id,'/resourceGroups/', variables('rgDevice'),'/providers/Microsoft.Network/virtualNetworks/', variables('virtualNetworkName'),'/subnets/', variables('subnetName'))]"
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Compute/virtualMachines",
+                            "apiVersion": "2019-07-01",
+                            "name": "[variables('vmName')]",
+                            "location": "[variables('location')]",
+                            "dependsOn": [
+                                "[variables('diskName')]",
+                                "[variables('nicName')]",
+                                "Scriptforcopy"
+                            ],
+                            "properties": {
+                                "hardwareProfile": {
+                                    "vmSize": "Standard_DS2_v2"
+                                },
+                                "storageProfile": {
+                                    "osDisk": {
+                                        "osType": "Linux",
+                                        "name": "[variables('diskName')]",
+                                        "createOption": "Attach",
+                                        "caching": "ReadWrite",
+                                        "managedDisk": {
+                                            "storageAccountType": "Premium_LRS",
+                                            "id": "[concat(subscription().id,'/resourceGroups/', variables('rgDevice'),'/providers/Microsoft.Compute/disks/', variables('diskName'))]"
+                                        },
+                                        "diskSizeGB": 64
+                                    },
+                                    "dataDisks": []
+                                },
+                                "networkProfile": {
+                                    "networkInterfaces": [
+                                        {
+                                            "id": "[concat(subscription().id,'/resourceGroups/', variables('rgDevice'),'/providers/Microsoft.Network/networkInterfaces/', variables('nicName'))]"
+                                        }
+                                    ]
+                                }
+                            }
+                        }
+                    ],
+                    "outputs": {}
+                }
+            },
+            "resourceGroup": "[variables('rgDevice')]",
+            "condition": "[equals(parameters('useExistingEdgeDevice'),'No')]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "IotHubDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]",
+                "VMDeployment"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Devices/IotHubs",
+                            "apiVersion": "2020-04-01",
+                            "name": "[variables('iotHubName')]",
+                            "dependsOn": [],
+                            "location": "[variables('location')]",
+                            "sku": {
+                                "name": "S1",
+                                "tier": "Standard",
+                                "capacity": 1
+                            },
+                            "identity": {
+                                "type": "None"
+                            },
+                            "properties": {
+                                "ipFilterRules": [],
+                                "eventHubEndpoints": {
+                                    "events": {
+                                        "retentionTimeInDays": 1,
+                                        "partitionCount": 4
+                                    }
+                                },
+                                "routing": {
+                                    "endpoints": {},
+                                    "routes": [],
+                                    "fallbackRoute": {
+                                        "name": "$fallback",
+                                        "source": "DeviceMessages",
+                                        "condition": "true",
+                                        "endpointNames": [
+                                            "events"
+                                        ],
+                                        "isEnabled": true
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Resources/deploymentScripts",
+                            "apiVersion": "2019-10-01-preview",
+                            "name": "ConfigureEdgeDevice",
+                            "dependsOn": [
+                                "[variables('iotHubName')]"
+                            ],
+                            "location": "[variables('location')]",
+                            "kind": "AzureCLI",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[concat(subscription().id,'/resourceGroups/', variables('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',variables('managedIdentityName'))]": {}
+                                }
+                            },
+                            "properties": {
+                                "forceUpdateTag": "1",
+                                "azCliVersion": "2.9.1",
+                                "primaryScriptUri": "https://unifiededgescenarios.blob.core.windows.net/arm-template/create-setup-iot-edge-device.sh",
+                                "supportingScriptUris": [],
+                                "environmentVariables": [
+                                    {
+                                        "name": "RESOURCE_GROUP_DEVICE",
+                                        "value": "[variables('rgDevice')]"
+                                    },
+                                    {
+                                        "name": "VM_NAME",
+                                        "value": "[variables('vmName')]"
+                                    },
+                                    {
+                                        "name": "IOTHUB_NAME",
+                                        "value": "[variables('iotHubName')]"
+                                    },
+                                    {
+                                        "name": "NSG_NAME",
+                                        "value": "[variables('networkSecurityGroupName')]"
+                                    },
+                                    {
+                                        "name": "DEVICE_NAME",
+                                        "value": "[variables('deviceName')]"
+                                    }
+                                ],
+                                "retentionInterval": "P1D",
+                                "timeout": "PT15M",
+                                "containerSettings": {},
+                                "cleanupPreference": "OnSuccess"
+                            }
+                        }
+                    ],
+                    "outputs": {}
+                }
+            },
+            "resourceGroup": "[parameters('resourceGroupIot')]",
+            "condition": "[equals(parameters('useExistingEdgeDevice'),'No')]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "ResourcesDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]",
+                "VMDeployment",
+                "IotHubDeployment"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "expressionEvaluationOptions": {
+                    "scope": "inner"
+                },
+                "parameters": {
+                    "resourceGroupIot": {
+                        "value": "[parameters('resourceGroupIot')]"
+                    },
+                    "StorageAccountName": {
+                        "value": "[variables('storageAccountName')]"
+                    },
+                    "iotHubName": {
+                        "value": "[variables('iotHubName')]"
+                    },
+                    "resourceGroupLocation": {
+                        "value": "[variables('location')]"
+                    },
+                    "accountType": {
+                        "value": "Standard_RAGRS"
+                    },
+                    "kind": {
+                        "value": "StorageV2"
+                    },
+                    "isHnsEnabled": {
+                        "value": true
+                    },
+                    "accountSasProperties": {
+                        "value": {
+                            "signedServices": "b",
+                            "signedPermission": "lr",
+                            "signedExpiry": "2021-01-01T00:00:01Z",
+                            "signedResourceTypes": "sco"
+                        }
+                    },
+                    "deviceArchitecture": {
+                        "value": "[parameters('deviceArchitecture')]"
+                    },
+                    "moduleRuntime": {
+                        "value": "[parameters('moduleRuntime')]"
+                    },
+                    "managedIdentityResourceGroup": {
+                        "value": "[variables('managedIdentityResourceGroup')]"
+                    },
+                    "managedIdentityName": {
+                        "value": "[variables('managedIdentityName')]"
+                    },
+                    "customVideoSource": {
+                        "value": "[variables('customVideoSource')]"
+                    },
+                    "deviceName": {
+                        "value": "[variables('deviceName')]"
+                    },
+                    "deploymentName": {
+                        "value": "[variables('deploymentName')]"
+                    }
+                },
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {
+                        "resourceGroupIot": {
+                            "type": "String"
+                        },
+                        "StorageAccountName": {
+                            "type": "String"
+                        },
+                        "iotHubName": {
+                            "type": "string"
+                        },
+                        "resourceGroupLocation": {
+                            "type": "String"
+                        },
+                        "accountType": {
+                            "type": "String"
+                        },
+                        "kind": {
+                            "type": "String"
+                        },
+                        "isHnsEnabled": {
+                            "type": "Bool"
+                        },
+                        "accountSasProperties": {
+                            "type": "Object"
+                        },
+                        "deviceArchitecture": {
+                            "type": "String"
+                        },
+                        "moduleRuntime": {
+                            "type": "String"
+                        },
+                        "managedIdentityResourceGroup": {
+                            "type": "String"
+                        },
+                        "managedIdentityName": {
+                            "type": "String"
+                        },
+                        "customVideoSource": {
+                            "type": "String"
+                        },
+                        "deviceName": {
+                            "type": "String"
+                        },
+                        "deploymentName": {
+                            "type": "String"
+                        },
+                        "utcValue": {
+                            "type": "string",
+                            "defaultValue": "[utcNow()]"
+                        }
+                    },
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Storage/storageAccounts",
+                            "apiVersion": "2019-06-01",
+                            "name": "[parameters('StorageAccountName')]",
+                            "location": "[parameters('resourceGroupLocation')]",
+                            "dependsOn": [],
+                            "tags": {},
+                            "sku": {
+                                "name": "[parameters('accountType')]"
+                            },
+                            "kind": "[parameters('kind')]",
+                            "properties": {
+                                "accessTier": "Hot",
+                                "minimumTlsVersion": "TLS1_0",
+                                "supportsHttpsTrafficOnly": true,
+                                "allowBlobPublicAccess": true,
+                                "networkAcls": {
+                                    "bypass": "AzureServices",
+                                    "defaultAction": "Allow",
+                                    "ipRules": []
+                                },
+                                "isHnsEnabled": "[parameters('isHnsEnabled')]"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/blobServices",
+                            "apiVersion": "2019-06-01",
+                            "name": "[concat(parameters('StorageAccountName'), '/default')]",
+                            "dependsOn": [
+                                "[parameters('storageAccountName')]"
+                            ],
+                            "sku": {
+                                "name": "Standard_RAGRS",
+                                "tier": "Standard"
+                            },
+                            "properties": {
+                                "cors": {
+                                    "corsRules": [
+                                        {
+                                            "allowedOrigins": [
+                                                "*"
+                                            ],
+                                            "allowedMethods": [
+                                                "GET",
+                                                "HEAD"
+                                            ],
+                                            "maxAgeInSeconds": 1000,
+                                            "exposedHeaders": [
+                                                "*"
+                                            ],
+                                            "allowedHeaders": [
+                                                "*"
+                                            ]
+                                        }
+                                    ]
+                                },
+                                "deleteRetentionPolicy": {
+                                    "enabled": false
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                            "apiVersion": "2019-06-01",
+                            "name": "[concat(parameters('storageAccountName'), '/default/detectoroutput')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                                "[parameters('storageAccountName')]"
+                            ],
+                            "properties": {
+                                "publicAccess": "None"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+                            "apiVersion": "2019-06-01",
+                            "name": "[concat(parameters('storageAccountName'), '/default/still-images')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', parameters('storageAccountName'), 'default')]",
+                                "[parameters('storageAccountName')]"
+                            ],
+                            "properties": {
+                                "publicAccess": "None"
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Devices/IotHubs",
+                            "apiVersion": "2020-04-01",
+                            "name": "[parameters('iotHubName')]",
+                            "dependsOn": [
+                                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', parameters('storageAccountName'), 'default','detectoroutput')]",
+                                "[parameters('storageAccountName')]"
+                            ],
+                            "location": "[parameters('resourceGroupLocation')]",
+                            "sku": {
+                                "name": "S1",
+                                "tier": "Standard",
+                                "capacity": 1
+                            },
+                            "identity": {
+                                "type": "None"
+                            },
+                            "properties": {
+                                "ipFilterRules": [],
+                                "eventHubEndpoints": {
+                                    "events": {
+                                        "retentionTimeInDays": 1,
+                                        "partitionCount": 4
+                                    }
+                                },
+                                "routing": {
+                                    "endpoints": {
+                                        "storageContainers": [
+                                            {
+                                                "connectionString": "[Concat('DefaultEndpointsProtocol=https;EndpointSuffix=core.windows.net;AccountName=',parameters('storageAccountName'),';AccountKey=',listKeys(resourceId('Microsoft.Storage/storageAccounts', parameters('storageAccountName')), '2019-06-01').keys[0].value)]",
+                                                "containerName": "detectoroutput",
+                                                "fileNameFormat": "{iothub}/{partition}/{YYYY}/{MM}/{DD}/{HH}/{mm}",
+                                                "batchFrequencyInSeconds": 60,
+                                                "maxChunkSizeInBytes": 104857600,
+                                                "encoding": "json",
+                                                "name": "adls-endpoint"
+                                            }
+                                        ]
+                                    },
+                                    "routes": [
+                                        {
+                                            "name": "defaultroute",
+                                            "source": "DeviceMessages",
+                                            "condition": "$twin.moduleId = 'tracker' OR $twin.moduleId = 'camerastream'",
+                                            "endpointNames": [
+                                                "events"
+                                            ],
+                                            "isEnabled": true
+                                        },
+                                        {
+                                            "name": "adls-route",
+                                            "source": "DeviceMessages",
+                                            "condition": "$twin.moduleId = 'camerastream'",
+                                            "endpointNames": [
+                                                "adls-endpoint"
+                                            ],
+                                            "isEnabled": true
+                                        }
+                                    ],
+                                    "fallbackRoute": {
+                                        "name": "$fallback",
+                                        "source": "DeviceMessages",
+                                        "condition": "true",
+                                        "endpointNames": [
+                                            "events"
+                                        ],
+                                        "isEnabled": true
+                                    }
+                                }
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Resources/deploymentScripts",
+                            "apiVersion": "2019-10-01-preview",
+                            "name": "ModuleDeployment",
+                            "dependsOn": [
+                                "[parameters('iotHubName')]"
+                            ],
+                            "location": "[parameters('resourceGroupLocation')]",
+                            "kind": "AzureCLI",
+                            "identity": {
+                                "type": "UserAssigned",
+                                "userAssignedIdentities": {
+                                    "[concat(subscription().id,'/resourceGroups/', parameters('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('managedIdentityName'))]": {}
+                                }
+                            },
+                            "properties": {
+                                "forceUpdateTag": "1",
+                                "azCliVersion": "2.9.1",
+                                "primaryScriptUri": "https://unifiededgescenarios.blob.core.windows.net/arm-template/deploy-modules.sh",
+                                "supportingScriptUris": [],
+                                "environmentVariables": [
+                                    {
+                                        "name": "DETECTOR_MODULE_RUNTIME",
+                                        "value": "[parameters('moduleRuntime')]"
+                                    },
+                                    {
+                                        "name": "EDGE_DEVICE_ARCHITECTURE",
+                                        "value": "[parameters('deviceArchitecture')]"
+                                    },
+                                    {
+                                        "name": "IOTHUB_NAME",
+                                        "value": "[parameters('iotHubName')]"
+                                    },
+                                    {
+                                        "name": "STORAGE_ACCOUNT_NAME",
+                                        "value": "[parameters('StorageAccountName')]"
+                                    },
+                                    {
+                                        "name": "RESOURCE_GROUP_IOT",
+                                        "value": "[parameters('resourceGroupIot')]"
+                                    },
+                                    {
+                                        "name": "CUSTOM_VIDEO_SOURCE",
+                                        "value": "[parameters('customVideoSource')]"
+                                    },
+                                    {
+                                        "name": "DEVICE_NAME",
+                                        "value": "[parameters('deviceName')]"
+                                    },
+                                    {
+                                        "name": "DEPLOYMENT_NAME",
+                                        "value": "[concat(parameters('deploymentName'),parameters('utcValue'))]"
+                                    },
+                                    {
+                                        "name": "IDENTITY_NAME",
+                                        "value": "[parameters('managedIdentityName')]"
+                                    }
+                                ],
+                                "retentionInterval": "P1D",
+                                "timeout": "PT15M",
+                                "containerSettings": {},
+                                "cleanupPreference": "OnSuccess"
+                            }
+                        }
+                    ],
+                    "outputs": {
+                        "sasToken": {
+                            "type": "string",
+                            "value": "[listAccountSas(parameters('StorageAccountName'), '2018-07-01', parameters('accountSasProperties')).accountSasToken]"
+                        },
+                        "IoTHubConnectionString": {
+                            "type": "string",
+                            "value": "[concat('HostName=', reference(resourceId('Microsoft.Devices/IoTHubs', parameters('iotHubName')), providers('Microsoft.Devices', 'IoTHubs').apiVersions[0]).hostName, ';SharedAccessKeyName=iothubowner;SharedAccessKey=', listKeys(resourceId('Microsoft.Devices/IotHubs', parameters('iotHubName')), providers('Microsoft.Devices', 'IoTHubs').apiVersions[0]).value[0].primaryKey)]"
+                        }
+                    }
+                }
+            },
+            "resourceGroup": "[parameters('resourceGroupIot')]"
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2020-06-01",
+            "name": "AppServicePlanDeployment",
+            "dependsOn": [
+                "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]",
+                "ResourcesDeployment"
+            ],
+            "properties": {
+                "mode": "Incremental",
+                "template": {
+                    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+                    "contentVersion": "1.0.0.0",
+                    "parameters": {},
+                    "variables": {},
+                    "resources": [
+                        {
+                            "type": "Microsoft.Web/serverfarms",
+                            "apiVersion": "2018-02-01",
+                            "name": "[variables('appServiceName')]",
+                            "location": "[variables('location')]",
+                            "sku": {
+                                "name": "S1",
+                                "tier": "Standard",
+                                "size": "S1",
+                                "family": "S",
+                                "capacity": 1
+                            },
+                            "kind": "app",
+                            "properties": {
+                                "perSiteScaling": false,
+                                "maximumElasticWorkerCount": 1,
+                                "isSpot": false,
+                                "reserved": false,
+                                "isXenon": false,
+                                "hyperV": false,
+                                "targetWorkerCount": 0,
+                                "targetWorkerSizeId": 0
+                            }
+                        },
+                        {
+                            "type": "Microsoft.Web/sites",
+                            "apiVersion": "2018-11-01",
+                            "name": "[variables('webappName')]",
+                            "location": "[variables('location')]",
+                            "dependsOn": [
+                                "[variables('appServiceName')]"
+                            ],
+                            "kind": "app",
+                            "properties": {
+                                "enabled": true,
+                                "hostNameSslStates": [
+                                    {
+                                        "name": "[concat(variables('webappName'), '.azurewebsites.net')]",
+                                        "sslState": "Disabled",
+                                        "hostType": "Standard"
+                                    },
+                                    {
+                                        "name": "[concat(variables('webappName'), '.scm.azurewebsites.net')]",
+                                        "sslState": "Disabled",
+                                        "hostType": "Repository"
+                                    }
+                                ],
+                                "serverFarmId": "[concat(subscription().id,'/resourceGroups/',parameters('resourceGroupIot'),'/providers/Microsoft.Web/serverfarms/', variables('appServiceName'))]",
+                                "reserved": false,
+                                "isXenon": false,
+                                "hyperV": false,
+                                "siteConfig": {},
+                                "scmSiteAlsoStopped": false,
+                                "clientAffinityEnabled": true,
+                                "clientCertEnabled": false,
+                                "hostNamesDisabled": false,
+                                "containerSize": 0,
+                                "dailyMemoryTimeQuota": 0,
+                                "httpsOnly": false,
+                                "redundancyMode": "None"
+                            },
+                            "resources": [
+                                {
+                                    "type": "config",
+                                    "apiVersion": "2018-11-01",
+                                    "name": "web",
+                                    "dependsOn": [
+                                        "[variables('webappName')]",
+                                        "MSDeploy"
+                                    ],
+                                    "properties": {
+                                        "webSocketsEnabled": true,
+                                        "alwaysOn": true
+                                    }
+                                },
+                                {
+                                    "name": "connectionstrings",
+                                    "type": "config",
+                                    "apiVersion": "2020-06-01",
+                                    "dependsOn": [
+                                        "[variables('webappName')]",
+                                        "MSDeploy"
+                                    ],
+                                    "properties": {
+                                        "EventHub": {
+                                            "value": "[reference('ResourcesDeployment').outputs.IoTHubConnectionString.value]",
+                                            "type": "Custom"
+                                        }
+                                    }
+                                },
+                                {
+                                    "type": "config",
+                                    "apiVersion": "2018-11-01",
+                                    "name": "appsettings",
+                                    "dependsOn": [
+                                        "[variables('webappName')]",
+                                        "MSDeploy"
+                                    ],
+                                    "properties": {
+                                        "STORAGE_BLOB_ACCOUNT": "[variables('storageAccountName')]",
+                                        "PASSWORD": "[parameters('password')]",
+                                        "WEBSITE_HTTPLOGGING_RETENTION_DAYS": "7",
+                                        "WEBSITE_NODE_DEFAULT_VERSION": "10.15.2",
+                                        "STORAGE_BLOB_CONTAINER_NAME": "still-images",
+                                        "STORAGE_BLOB_PATH": "Office/cam001",
+                                        "STORAGE_BLOB_SHARED_ACCESS_SIGNATURE": "[reference('ResourcesDeployment').outputs.sasToken.value]"
+                                    }
+                                },
+                                {
+                                    "type": "Extensions",
+                                    "apiVersion": "2018-11-01",
+                                    "name": "MSDeploy",
+                                    "location": "[variables('location')]",
+                                    "dependsOn": [
+                                        "[variables('webappName')]"
+                                    ],
+                                    "properties": {
+                                        "packageUri": "https://unifiededgescenarios.blob.core.windows.net/arm-template/people-detection-app.zip"
+                                    }
+                                }
+                            ]
+                        }
+                    ]
+                }
+            },
+            "resourceGroup": "[parameters('resourceGroupIot')]"
+        }
+    ],
+    "outputs": {
+        "WebAppURL": {
+            "type": "string",
+            "value": "[concat('https://', variables('webappName'), '.azurewebsites.net')]"
+        }
+    }
+}
