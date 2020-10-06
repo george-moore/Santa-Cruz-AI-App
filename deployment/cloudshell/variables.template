@@ -1,0 +1,81 @@
+#
+# Variables configuration for people detector AI deployment
+#
+
+#####################################################################
+# Section 1: General configuration which applies to all components
+#####################################################################
+# Hardware execution environment for this deployment
+# AI execution hardware: set to 'CPU' for CPU-based dectector in cloud, 'MOVIDIUS' for Intel Myriad X VPU, or 'NVIDIA' to use Nvidia GPU:
+DETECTOR_MODULE_RUNTIME=""
+# Specify the CPU architecture of the Edge Device. Currently supported values are X86 and ARM64:
+EDGE_DEVICE_ARCHITECTURE=""
+#
+
+#####################################################################
+# Section 2: Virtualized Eye VM in the public cloud
+#####################################################################
+
+# Resource Group name which will host the Eye VM. This name must be unique within your subscription:
+RESOURCE_GROUP_DEVICE=""
+#
+
+#####################################################################
+# Section 3: IoT Hub + Storage configuration to route and host the AI output
+#####################################################################
+
+# Resource Group name which will host the IoT Hub. This name must be unique within your subscription:
+RESOURCE_GROUP_IOT=""
+
+#####################################################################
+# Section 4: Vizualization UX application
+#####################################################################
+
+# This is the password to login to the UX webapp. Best practice is to assign a password so others can't see your AI camera output:
+PASSWORD_FOR_WEBSITE_LOGIN=""
+
+#####################################################################
+#####################################################################
+#####################################################################
+# You shouldn't need to edit any lines below this point unless you need to change the defaults
+#####################################################################
+
+# Section 1: General configuration
+# Subscription ID to host your deployments:
+SUBSCRIPTION_ID=""
+# Azure Region for your deployment:
+LOCATION=""
+
+USE_EXISTING_RESOURCES="true"
+INSTALL_REQUIRED_PACKAGES="true"
+
+# Section 2: Virtualized Eye VM
+# Eye Linux VM managed disk name. This will be created within your resource group:
+DISK_NAME=""
+# Name of the mariner VM on Azure. This will be created within your resource group:
+VM_NAME=""
+STORAGE_TYPE="Premium_LRS"
+VM_SIZE="Standard_DS2_v2"
+
+# Section 3: IoT Hub + Storage configuration
+# IoT Hub name within your Resource Group:
+IOTHUB_NAME=""
+# IoT Device name within your IoT Hub:
+DEVICE_NAME=""
+# Azure Data Lake Account name to host the AI imagery output of the Eye device
+# This name is an Azure storage URL and must be globally unique. It cannot contain dashes or spaces:
+STORAGE_ACCOUNT_NAME=""
+
+MANIFEST_TEMPLATE_NAME="deployment.camera.template.json"
+MANIFEST_ENVIRONMENT_VARIABLES_FILENAME=".env"
+DEPLOYMENT_NAME="eye-deployment"
+CUSTOM_VIDEO_SOURCE=""
+
+
+# Section 4:  Vizualization UX application
+# The name of your app within Azure Websites. This is your own private name and will not be public:
+APP_SERVICE_PLAN_NAME=""
+# This is the public name of the vizualization UX URL. This name must be globally unique in Azure Website:
+WEBAPP_NAME=""
+APP_SERVICE_PLAN_SKU="S1"
+

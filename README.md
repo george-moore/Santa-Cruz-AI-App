@@ -3,14 +3,14 @@
 
 Press this button to deploy the people counting application to either the Azure public cloud or your Santa Cruz AI device:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20200918.5%2Fazuredeploy-20200918.5.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201005.6%2Fazuredeploy-20201005.6.json)
 
 ### Overview
 
 This is an open source Santa Cruz AI application providing edge-based people counting with user-defined zone entry/exit events. Video and AI output from the on-prem edge device is egressed to Azure Data Lake, with the user interface running as an Azure Website. AI inferencing is provided by an open source AI model for people detection:
 
 
-![People Detector](/images/People-Detector-AI.gif)
+![People Detector](docs/images/People-Detector-AI.gif)
 
 
 ###
@@ -20,21 +20,21 @@ This application can execute against a Virtual Azure Eye AI Device in the cloud,
 
 **Please note: the current implementation runs as emulation in the cloud. A version for the physical Santa Cruz Devkit will be available soon!**
 ## Software emulation app topology
-![People Detector](/images/Software-Emulation.PNG)
+![People Detector](docs/images/Software-Emulation.png)
 
 ## Physical hardware app topology
-![People Detector](/images/Hardware-Topology.PNG)
+![People Detector](docs/images/Hardware-Topology.png)
 
 
 # Installation details
 This reference open source application showcases best practices for AI security, privacy and compliance.  It is intended to be immediately useful for anyone to use with their Santa Cruz AI device. Deployment starts with this button:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20200918.5%2Fazuredeploy-20200918.5.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201005.6%2Fazuredeploy-20201005.6.json)
 #
 
 This will redirect you to the Azure portal with this deployment page:
 
-![People Detector](/images/Custom-Deployment.PNG)
+![People Detector](docs/images/Custom-Deployment.png)
 #
 
 To deploy an emulation environment in the cloud, please enter the following parameters:
@@ -47,7 +47,7 @@ To deploy an emulation environment in the cloud, please enter the following para
 
 Once deployment is complete, you can launch the web application by navigating to the `Resource Group IoT` name selected above. You will see an Azure Web Services deployment which starts with `ues-eyeapp` followed by 4 random digits. Select this app, then chose the `Browse` button in the top left:
 
-![Web Application](/images/Web-App-Launch.PNG)
+![Web Application](docs/images/Web-App-Launch.png)
 
 Once the application loads, you will need to enter the password you entered at deployment time. The password is cached for subsequent visits to the same application.
 
@@ -69,3 +69,5 @@ To install this reference application you must have Owner or Contributor level a
 * Microsoft.Network
 * Microsoft.Storage
 * Microsoft.Resources
+
+**Note :** If you want to use Azure Cloud Shell for the deployment, follow the [instructions here](docs/cloudshell-deployment-steps.md)

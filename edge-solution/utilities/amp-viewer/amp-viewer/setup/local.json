@@ -1,0 +1,11 @@
+{
+    "amsAadClientId": "",
+    "amsAadSecret": "",
+    "amsAadTenantId": "",
+    "amsArmAadAudience": "",
+    "amsArmEndpoint": "",
+    "amsAadEndpoint": "",
+    "amsSubscriptionId": "",
+    "amsResourceGroup": "",
+    "amsAccountName": ""
+}

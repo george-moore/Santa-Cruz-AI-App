@@ -1,0 +1,17 @@
+{
+    "$schema-version": "0.0.1",
+    "description": "",
+    "image": {
+        "repository": "${ACR_NAME}/opencv_base",
+        "tag": {
+            "version": "latest",
+            "platforms": {
+                "amd64": "./opencv_base.amd64.dockerfile",
+                "arm64v8": "./opencv_base.arm64v8.dockerfile"
+            }
+        },
+        "buildOptions": "",
+        "contextPath": "./"
+    },
+    "language": "python"
+}

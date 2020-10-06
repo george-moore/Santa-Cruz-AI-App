@@ -1,0 +1,31 @@
+{
+    "compilerOptions": {
+        "outDir": "./client_dist",
+        "allowJs": true,
+        "target": "es6",
+        "lib": [
+            "es2018",
+            "dom"
+        ],
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "declaration": false,
+        "esModuleInterop": true,
+        "noImplicitAny": false,
+        "jsx": "react",
+        "sourceMap": true,
+        "noLib": false,
+        "suppressImplicitAnyIndexErrors": true,
+        "experimentalDecorators": true,
+        "emitDecoratorMetadata": true,
+        "types": [
+            "webpack-env",
+            "jest"
+        ]
+    },
+    "compileOnSave": false,
+    "exclude": [
+        "client_dist",
+        "node_modules"
+    ]
+}

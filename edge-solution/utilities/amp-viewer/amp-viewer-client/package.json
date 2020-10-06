@@ -1,0 +1,83 @@
+{
+    "name": "amp-client",
+    "version": "1.0.15",
+    "description": "Amp client demo",
+    "main": "index.ts",
+    "scripts": {
+        "test": "node ./node_modules/jest/bin/jest.js",
+        "tslint": "node ./node_modules/tslint/bin/tslint -p ./tsconfig.json -e '**/client_dist/**'",
+        "build": "./node_modules/.bin/webpack --color --config configs/webpack.prod.js --mode production",
+        "copybuild": "./node_modules/cpr/bin/cpr client_dist ../amp-viewer/client_dist -d",
+        "preversion": "npm test",
+        "version": "npm run build",
+        "start": "./node_modules/.bin/webpack-dev-server --config ./configs/webpack.dev.js --mode development"
+    },
+    "author": "sseiber",
+    "license": "MIT",
+    "dependencies": {
+        "babel-polyfill": "^6.26.0",
+        "cpr": "^3.0.1",
+        "eventemitter2": "^4.1.0",
+        "fs-extra": "^9.0.1",
+        "history": "^4.10.1",
+        "lodash.pick": "^4.4.0",
+        "mobx": "^5.15.4",
+        "mobx-react": "^6.2.2",
+        "moment": "^2.27.0",
+        "query-string": "^6.13.1",
+        "react": "^16.13.1",
+        "react-dom": "^16.13.1",
+        "react-router-dom": "^5.2.0",
+        "semantic-ui-react": "^0.88.2",
+        "whatwg-fetch": "^3.2.0"
+    },
+    "devDependencies": {
+        "@hot-loader/react-dom": "^16.13.0",
+        "@types/history": "^4.7.6",
+        "@types/jest": "^26.0.4",
+        "@types/node": "^14.0.23",
+        "@types/react": "^16.9.43",
+        "@types/react-test-renderer": "^16.9.2",
+        "@types/webpack-env": "^1.15.2",
+        "awesome-typescript-loader": "^5.2.1",
+        "babel-core": "^6.26.3",
+        "babel-preset-env": "^1.7.0",
+        "commander": "^5.1.0",
+        "copy-webpack-plugin": "^6.0.3",
+        "css-loader": "^3.6.0",
+        "file-loader": "^6.0.0",
+        "html-webpack-plugin": "^4.3.0",
+        "jest": "^26.1.0",
+        "mini-css-extract-plugin": "^0.9.0",
+        "node-sass": "^4.14.1",
+        "react-hot-loader": "^4.12.21",
+        "react-test-renderer": "^16.13.1",
+        "sass-loader": "^8.0.2",
+        "style-loader": "^1.2.1",
+        "ts-jest": "^26.1.2",
+        "tslint": "^5.20.1",
+        "tslint-react": "^5.0.0",
+        "typescript": "^3.9.7",
+        "url-loader": "^4.1.0",
+        "webpack": "^4.43.0",
+        "webpack-cli": "^3.3.12",
+        "webpack-dev-server": "^3.11.0"
+    },
+    "jest": {
+        "rootDir": "./src/",
+        "testRegex": "(/__tests__/.*|\\.spec)\\.(ts|tsx)$",
+        "moduleFileExtensions": [
+            "js",
+            "jsx",
+            "json",
+            "ts",
+            "tsx"
+        ],
+        "transform": {
+            ".tsx?": "ts-jest"
+        },
+        "moduleNameMapper": {
+            "\\.(jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "./__mocks__/fileMock.js"
+        }
+    }
+}

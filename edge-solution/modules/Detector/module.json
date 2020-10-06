@@ -1,0 +1,17 @@
+{
+    "$schema-version": "0.0.1",
+    "description": "",
+    "image": {
+        "repository": "${ACR_NAME}/people-detector",
+        "tag": {
+            "version": "${CAMERA_CONTAINER_IMAGE_TAG}",
+            "platforms": {
+                "amd64": "./detector.amd64.dockerfile",
+                "arm64v8": "./detector.arm64v8.dockerfile"
+            }
+        },
+        "buildOptions": ["--build-arg ACR_NAME=${ACR_NAME} --build-arg IMAGE_BASE=${IMAGE_BASE}"],
+        "contextPath": "./"
+    },
+    "language": "python"
+}
