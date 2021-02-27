@@ -28,6 +28,10 @@ class VideoStream:
     self.frame_grabber = None
     self.is_rtsp = self.cam.lower().startswith('rtsp')
 
+    # fix if the source is local device like /dev/video0 
+    if(stream_source.isdigit()):
+      self.cam = int(stream_source)
+
     self.fps = None
     self.delay_frames = None
     self.delay_time = None

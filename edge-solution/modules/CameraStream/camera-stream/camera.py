@@ -124,8 +124,14 @@ def spin_camera_loop(messenger, shared_mem_file):
 
       # this will keep track of how long we need to wait between
       # bursts of activity
-      video_streamer = current_source['video']
 
+      # find the current video streamer 
+      for keycurrent, camcurrent in intervals_per_cam.items():
+          if camcurrent['rtsp'] == cam['rtsp']:
+              video_streamer = camcurrent['video']
+      # video_streamer = current_source['video']
+
+      # TODO fix multi video sources time issue.
       # not enough time has passed since the last collection
       if curtime - current_source['timer'] < float(cam['interval']):
           continue
