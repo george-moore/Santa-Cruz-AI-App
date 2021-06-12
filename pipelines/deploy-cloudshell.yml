@@ -13,14 +13,14 @@ resources:
       enabled: true
 
 pool:
-  vmImage: 'ubuntu-latest'
+  default
 
 
 variables:
   buildSuffix: '$(Build.BuildNumber)' 
-  ${{ if eq(variables['Build.SourceBranchName'], 'release') }}:
+  ${{ if startsWith(variables['Build.SourceBranchName'], 'release') }}:
     Variable_Group: 'CloudShell_ReleaseEnvironment'
-  ${{ if ne(variables['Build.SourceBranchName'], 'release') }}:
+  ${{ if not(startsWith(variables['Build.SourceBranchName'], 'release')) }}:
      Variable_Group: 'CloudShell_TestEnvrionment'
 
 stages:
@@ -42,6 +42,20 @@ stages:
       inputs:
         targetType: 'inline'
         script: |
+          # Write your commands here
+          set -e
+          
+          if [ -z $(command -v az) ]; then
+            echo "Installing Azure-cli"
+            curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+            echo "Installed Azure-cli"
+          fi
+          
+          if [[ $(az extension list --query "[?name=='azure-iot'].name" --output tsv | wc -c) -eq 0 ]]; then
+            echo "$(info) Installing azure-iot extension"
+            az extension add --name azure-iot
+          fi
+          
           echo "Logging to Azure"
                           
           az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
@@ -127,7 +141,8 @@ stages:
             --file deployment-bundle.zip \
             --name deployment-bundle.zip
           
-          unzip deployment-bundle.zip -d .
+          unzip -o deployment-bundle.zip -d .
+          
         workingDirectory: '$(System.DefaultWorkingDirectory)/deployment-bundle'
     
     - task: Bash@3
@@ -395,7 +410,7 @@ stages:
                 
                 if [ "$RESOURCE_GROUP_DEVICE" == "$RESOURCE_GROUP_IOT" ]; then
                   echo "Deleting resource group \"$RESOURCE_GROUP_DEVICE\""
-
+                
                   az group delete --resource-group "$RESOURCE_GROUP_DEVICE" --yes --no-wait
                   
                   echo "Triggered deletion of resource group \"$RESOURCE_GROUP_DEVICE\""
@@ -411,4 +426,5 @@ stages:
                   az group delete --resource-group "$RESOURCE_GROUP_IOT" --yes --no-wait
                   
                   echo "Triggered deletion of resource group \"$RESOURCE_GROUP_IOT\""
-                fi  
+                fi
+              workingDirectory: '$(System.DefaultWorkingDirectory)'

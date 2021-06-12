@@ -14,7 +14,7 @@ trigger:
     - pipelines/deploy-frontend.yml
 
 pool:
-  vmImage: 'ubuntu-latest'
+  default
 
 steps:
 - checkout: self
@@ -23,6 +23,7 @@ steps:
   inputs:
     versionSpec: '10.x'
   displayName: 'Install Node.js'
+
 
 # script for creating build in specific folder
 - script: |
@@ -34,9 +35,9 @@ steps:
 # copying the files from build folder to uesmessagesapp
 - task: CopyFiles@2
   inputs:
-    SourceFolder: '/home/vsts/work/1/s/frontend-app/app/build'
+    SourceFolder: 'frontend-app/app/build'
     Contents: '**'
-    TargetFolder: '/home/vsts/work/1/s/frontend-app/api/public'
+    TargetFolder: 'frontend-app/api/public'
   displayName: 'npm install and build and copy'
 
 # install dependencies for api

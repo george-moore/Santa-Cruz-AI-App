@@ -3,7 +3,7 @@
 
 Press this button to deploy the people counting application to either the Azure public cloud or your Santa Cruz AI device:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201005.6%2Fazuredeploy-20201005.6.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201013.8%2Fazuredeploy-20201013.8.json)
 
 ### Overview
 
@@ -29,7 +29,7 @@ This application can execute against a Virtual Azure Eye AI Device in the cloud,
 # Installation details
 This reference open source application showcases best practices for AI security, privacy and compliance.  It is intended to be immediately useful for anyone to use with their Santa Cruz AI device. Deployment starts with this button:
 
-[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201005.6%2Fazuredeploy-20201005.6.json)
+[![Deploy to Azure](https://aka.ms/deploytoazurebutton)](https://portal.azure.com/#create/Microsoft.Template/uri/https%3A%2F%2Funifiededgescenarios.blob.core.windows.net%2Farm-template%2F20201013.8%2Fazuredeploy-20201013.8.json)
 #
 
 This will redirect you to the Azure portal with this deployment page:

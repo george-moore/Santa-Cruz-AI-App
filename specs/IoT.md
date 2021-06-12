@@ -4,7 +4,7 @@ This reference application hosts an open source SSD-MobileNet based AI model whi
 
 It has the following overall topology consisting of two primary Azure IoT Edge containers running within the Santa Cruz device, connected to several Azure cloud components:
 
-![](/docs/images/AI-App-Topology.PNG)
+![](/docs/images/AI-App-Topology.png)
 
 You can view the details on these two containers by visting the IoT Hub which was deployed as a part of this application.  Choose `IoT Edge` in the left rail under `Automatic Device Management`.  Once selected, you'll see your `azureEyeEdgeDevice` in the main portal window:
 

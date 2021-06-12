@@ -95,7 +95,8 @@
         "deploymentName": "[concat('eye-deployment',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
         "managedIdentityName": "[concat('Managed_Identity',substring(uniqueString(subscription().id,parameters('resourceGroupIot')),1,4))]",
         "managedIdentityResourceGroup": "[parameters('resourceGroupIot')]",
-        "customVideoSource": ""
+        "customVideoSource": "",
+        "applicationType": "[concat('people-tracking_opencv_', parameters('deviceArchitecture'), '_', parameters('moduleRuntime'))]"
     },
     "resources": [
         {
@@ -264,6 +265,9 @@
                                 "name": "Premium_LRS",
                                 "tier": "Premium"
                             },
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                                },
                             "properties": {
                                 "osType": "Linux",
                                 "hyperVGeneration": "V2",
@@ -281,7 +285,7 @@
                         {
                             "type": "Microsoft.Resources/deploymentScripts",
                             "apiVersion": "2019-10-01-preview",
-                            "name": "Scriptforcopy",
+                            "name": "DiskSetup",
                             "dependsOn": [
                                 "[variables('diskName')]"
                             ],
@@ -293,6 +297,9 @@
                                     "[concat(subscription().id,'/resourceGroups/', variables('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',variables('managedIdentityName'))]": {}
                                 }
                             },
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },                            
                             "properties": {
                                 "forceUpdateTag": "1",
                                 "azCliVersion": "2.9.1",
@@ -318,13 +325,19 @@
                             "type": "Microsoft.Network/networkSecurityGroups",
                             "apiVersion": "2019-08-01",
                             "name": "[variables('networkSecurityGroupName')]",
-                            "location": "[variables('location')]"
+                            "location": "[variables('location')]",
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            }
                         },
                         {
                             "type": "Microsoft.Network/publicIPAddresses",
                             "apiVersion": "2018-11-01",
                             "name": "[variables('publicIPAddressName')]",
                             "location": "[variables('location')]",
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },
                             "properties": {
                                 "publicIPAllocationMethod": "Dynamic"
                             }
@@ -337,6 +350,9 @@
                             "dependsOn": [
                                 "[variables('networkSecurityGroupName')]"
                             ],
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },
                             "properties": {
                                 "addressSpace": {
                                     "addressPrefixes": [
@@ -365,6 +381,9 @@
                                 "[variables('virtualNetworkName')]",
                                 "[variables('publicIPAddressName')]"
                             ],
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },
                             "properties": {
                                 "ipConfigurations": [
                                     {
@@ -390,8 +409,11 @@
                             "dependsOn": [
                                 "[variables('diskName')]",
                                 "[variables('nicName')]",
-                                "Scriptforcopy"
+                                "DiskSetup"
                             ],
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },
                             "properties": {
                                 "hardwareProfile": {
                                     "vmSize": "Standard_DS2_v2"
@@ -456,6 +478,9 @@
                             "identity": {
                                 "type": "None"
                             },
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },
                             "properties": {
                                 "ipFilterRules": [],
                                 "eventHubEndpoints": {
@@ -494,6 +519,9 @@
                                     "[concat(subscription().id,'/resourceGroups/', variables('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',variables('managedIdentityName'))]": {}
                                 }
                             },
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                            },                            
                             "properties": {
                                 "forceUpdateTag": "1",
                                 "azCliVersion": "2.9.1",
@@ -537,7 +565,7 @@
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2020-06-01",
-            "name": "ResourcesDeployment",
+            "name": "ModulesDeployment",
             "dependsOn": [
                 "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]",
                 "VMDeployment",
@@ -598,6 +626,9 @@
                     },
                     "deploymentName": {
                         "value": "[variables('deploymentName')]"
+                    },
+                     "applicationType": {
+                        "value": "[variables('applicationType')]"
                     }
                 },
                 "template": {
@@ -649,6 +680,9 @@
                         "deploymentName": {
                             "type": "String"
                         },
+                        "applicationType": {
+                            "type": "String"
+                        },
                         "utcValue": {
                             "type": "string",
                             "defaultValue": "[utcNow()]"
@@ -662,7 +696,9 @@
                             "name": "[parameters('StorageAccountName')]",
                             "location": "[parameters('resourceGroupLocation')]",
                             "dependsOn": [],
-                            "tags": {},
+                            "tags": {
+                                "type": "[parameters('applicationType')]"
+                            },
                             "sku": {
                                 "name": "[parameters('accountType')]"
                             },
@@ -758,6 +794,9 @@
                             "identity": {
                                 "type": "None"
                             },
+                            "tags": {
+                                "type": "[parameters('applicationType')]"
+                            },
                             "properties": {
                                 "ipFilterRules": [],
                                 "eventHubEndpoints": {
@@ -815,7 +854,7 @@
                         {
                             "type": "Microsoft.Resources/deploymentScripts",
                             "apiVersion": "2019-10-01-preview",
-                            "name": "ModuleDeployment",
+                            "name": "DeployModules",
                             "dependsOn": [
                                 "[parameters('iotHubName')]"
                             ],
@@ -827,6 +866,9 @@
                                     "[concat(subscription().id,'/resourceGroups/', parameters('managedIdentityResourceGroup'),'/providers/Microsoft.ManagedIdentity/userAssignedIdentities/',parameters('managedIdentityName'))]": {}
                                 }
                             },
+                            "tags": {
+                                "type": "[parameters('applicationType')]"
+                            },                            
                             "properties": {
                                 "forceUpdateTag": "1",
                                 "azCliVersion": "2.9.1",
@@ -897,7 +939,7 @@
             "name": "AppServicePlanDeployment",
             "dependsOn": [
                 "[resourceId('Microsoft.Resources/resourceGroups/', parameters('resourceGroupIot'))]",
-                "ResourcesDeployment"
+                "ModulesDeployment"
             ],
             "properties": {
                 "mode": "Incremental",
@@ -920,6 +962,9 @@
                                 "capacity": 1
                             },
                             "kind": "app",
+                            "tags": {
+                                "type": "[variables('applicationType')]"
+                                    },
                             "properties": {
                                 "perSiteScaling": false,
                                 "maximumElasticWorkerCount": 1,
@@ -939,6 +984,10 @@
                             "dependsOn": [
                                 "[variables('appServiceName')]"
                             ],
+                            "tags": {
+                                "edgeAIAppDeployment": "people-tracking-app",
+                                "type": "[variables('applicationType')]"
+                            },
                             "kind": "app",
                             "properties": {
                                 "enabled": true,
@@ -992,7 +1041,7 @@
                                     ],
                                     "properties": {
                                         "EventHub": {
-                                            "value": "[reference('ResourcesDeployment').outputs.IoTHubConnectionString.value]",
+                                            "value": "[reference('ModulesDeployment').outputs.IoTHubConnectionString.value]",
                                             "type": "Custom"
                                         }
                                     }
@@ -1012,7 +1061,7 @@
                                         "WEBSITE_NODE_DEFAULT_VERSION": "10.15.2",
                                         "STORAGE_BLOB_CONTAINER_NAME": "still-images",
                                         "STORAGE_BLOB_PATH": "Office/cam001",
-                                        "STORAGE_BLOB_SHARED_ACCESS_SIGNATURE": "[reference('ResourcesDeployment').outputs.sasToken.value]"
+                                        "STORAGE_BLOB_SHARED_ACCESS_SIGNATURE": "[reference('ModulesDeployment').outputs.sasToken.value]"
                                     }
                                 },
                                 {

@@ -78,6 +78,7 @@ echo "$(info) Updating Config.yaml on edge device with the connection string fro
 CONFIG_FILE_PATH="/etc/iotedge/config.yaml"
 # Replace placeholder connection string with actual value for Edge device
 # Using sshpass and ssh to update the value on Edge device
+sleep 60
 Command="sudo sed -i -e '/device_connection_string:/ s#\"[^\"][^\"]*\"#\"$EDGE_DEVICE_CONNECTION_STRING\"#' $CONFIG_FILE_PATH"
 sshpass -p "$EDGE_DEVICE_PASSWORD" ssh "$EDGE_DEVICE_USERNAME"@"$EDGE_DEVICE_PUBLIC_IP" -o StrictHostKeyChecking=no "$Command"
 echo "$(info) Config.yaml update is complete"

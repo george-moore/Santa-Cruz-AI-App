@@ -18,7 +18,7 @@ resources:
       enabled: true
 
 pool:
-  vmImage: 'ubuntu-latest'
+  default
 
 variables:
   ${{ if eq(variables['Build.SourceBranchName'], 'release') }}:
@@ -75,7 +75,7 @@ stages:
               fi
               exit 1
           fi
-        workingDirectory: '/home/vsts/work/1/s'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
       
     - task: DownloadPipelineArtifact@2
       enabled: true
@@ -85,48 +85,48 @@ stages:
         project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
         definition: '6'
         buildVersionToDownload: 'latest'
-        targetPath: '/home/vsts/work/1/s'
+        targetPath: '$(System.DefaultWorkingDirectory)'
 
     - task: CopyFiles@2
       displayName: 'Copy deployment manifest files to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/edge-solution/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)/edge-solution/'
         Contents: |
           .env
           deployment.camera.template.json
-        TargetFolder: '/home/vsts/work/1/s/edge-solution/combined'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/edge-solution/combined'
     
     - task: CopyFiles@2
       displayName: 'Copy CameraStream module to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/edge-solution/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)/edge-solution/'
         Contents: |
           modules/CameraStream/module.json
-        TargetFolder: '/home/vsts/work/1/s/edge-solution/combined/modules/CameraStream'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/edge-solution/combined/modules/CameraStream'
         flattenFolders: true
 
     - task: CopyFiles@2
       displayName: 'Copy Detector module to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/edge-solution/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)/edge-solution/'
         Contents: |
           modules/Detector/module.json
-        TargetFolder: '/home/vsts/work/1/s/edge-solution/combined/modules/Detector'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/edge-solution/combined/modules/Detector'
         flattenFolders: true
     
     # Creating the manifest bundle zip from combined folder
     - task: ArchiveFiles@2
       inputs:
-        rootFolderOrFile: '/home/vsts/work/1/s/edge-solution/combined'
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)/edge-solution/combined'
         includeRootFolder: false
         archiveType: 'zip'
-        archiveFile: '/home/vsts/work/1/s/manifest-bundle.zip'
+        archiveFile: '$(System.DefaultWorkingDirectory)/manifest-bundle.zip'
         replaceExistingArchive: true
 
     - task: CopyFiles@2
       displayName: 'Copy deployment manifest files to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           manifest-bundle.zip
           ues_app/people-detection-app.zip
@@ -134,7 +134,8 @@ stages:
           deployment/arm/scripts/deploy-modules.sh
           deployment/arm/scripts/disk-setup.sh
           deployment/arm/azuredeploy.json
-        TargetFolder: '/home/vsts/work/1/s/arm_template_bundle'
+          deployment/arm/smoketest.sh
+        TargetFolder: '$(System.DefaultWorkingDirectory)/arm_template_bundle'
         flattenFolders: true
 
 
@@ -142,7 +143,7 @@ stages:
     # Creating the ARM Template deployment bundle zip.
     - task: ArchiveFiles@2
       inputs:
-        rootFolderOrFile: '/home/vsts/work/1/s/arm_template_bundle'
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)/arm_template_bundle'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/arm-deployment-bundle.zip'

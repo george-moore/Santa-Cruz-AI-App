@@ -11,13 +11,13 @@ resources:
       enabled: true
 
 pool: 
-  vmImage: 'ubuntu-latest'
+  default
 
 variables:
   buildSuffix: '$(Build.BuildNumber)' 
-  ${{ if eq(variables['Build.SourceBranchName'], 'release') }}:
+  ${{ if startsWith(variables['Build.SourceBranchName'], 'release') }}:
     Variable_Group: 'ARMTemplate_ReleaseEnvironment'
-  ${{ if ne(variables['Build.SourceBranchName'], 'release') }}:
+  ${{ if not(startsWith(variables['Build.SourceBranchName'], 'release')) }}:
      Variable_Group: 'ARMTemplate_TestEnvironment'
 
 
@@ -81,9 +81,10 @@ stages:
         project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
         definition: '1'
         buildVersionToDownload: 'latest'
-        targetPath: '/home/vsts/work/1/s'
+        targetPath: '$(System.DefaultWorkingDirectory)'
 
     - task: Bash@3
+      enabled: true
       displayName: 'Update ARM template and scripts with temporary blob container links'
       inputs:
         targetType: 'inline'
@@ -92,7 +93,7 @@ stages:
           
           echo "Extracting files from artifact zip"
            
-          unzip arm-deployment-bundle.zip -d .
+          unzip -o arm-deployment-bundle.zip -d .
           
           echo "Updating links in ARM template and scripts to point to temporary container in blob storage"
           
@@ -123,7 +124,7 @@ stages:
           jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' azuredeploy.json > "tmp" && mv "tmp" azuredeploy.json
           
           echo "Updated Primary scripts Url for deploymentScript in arm template"
-        workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'
     - task: Bash@3
       enabled: true
       displayName: 'Upload the ARM template scripts to temporary container in storage account'
@@ -197,17 +198,18 @@ stages:
             --container-name "$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME" \
             --file people-detection-app.zip \
             --name people-detection-app.zip
-        workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+        workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'
     
 
     - task: AzureResourceManagerTemplateDeployment@3
+      enabled: true
       inputs:
         deploymentScope: 'Subscription'
         azureResourceManagerConnection: 'AED E2E Subscription'
         subscriptionId: '7c9469c0-29ac-424a-85ab-d01f2cea1c38'
         location: 'East US'
         templateLocation: 'Linked artifact'
-        csmFile: '/home/vsts/work/1/s/arm-deployment-bundle/azuredeploy.json'
+        csmFile: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle/azuredeploy.json'
         overrideParameters: '-resourceGroupIot "$(RESOURCE_GROUP_IOT_ARM)" -resourceGroupDevice "$(RESOURCE_GROUP_DEVICE_ARM)" -deviceArchitecture "$(DEVICE_ARCHITECTURE)" -moduleRuntime "$(MODULE_RUNTIME)" -password "$(PASSWORD)" -useExistingEdgeDevice "$(USE_EXISTING_EDGE_DEVICE)"'
         deploymentMode: 'Incremental'
     - task: Bash@3
@@ -235,8 +237,30 @@ stages:
 
             echo "Deleted temp container  \"$STORAGE_ACCOUNT_ARM_SCRIPTS_CONTAINER_NAME\" for arm template scripts"
           fi
-        workingDirectory: '/home/vsts/work/1/s'
+        workingDirectory: '$(System.DefaultWorkingDirectory)'
+    
+    - task: Bash@3
+      enabled: true
+      displayName: 'Run smoke test'
+      env:
+        TENANT_ID: $(TENANT_ID)
+        SP_APP_PWD: $(SP_APP_PWD)
+      inputs:
+        targetType: 'inline'
+        script: |
+           # Exit the script on any error
+           set -e
+           echo "Delaying execution of smoketest script by 5 minutes to allow IoTEdge modules to start"
+           sleep 5m
 
+           az login --service-principal --username "$SP_APP_ID" --password "$SP_APP_PWD" --tenant "$TENANT_ID" --output "none"
+           
+           echo "Running smoketest script"
+           
+           sudo bash ./smoketest.sh --rg-iot "$RESOURCE_GROUP_IOT_ARM" --rg-vm "$RESOURCE_GROUP_DEVICE_ARM" 
+          
+           echo "Task is complete"
+        workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'
 
 - stage: Release
   jobs:
@@ -294,7 +318,7 @@ stages:
               project: '1ab7de3c-f8b7-4b59-be5a-fa78b4f4570c'
               definition: '1'
               buildVersionToDownload: 'latest'
-              targetPath: '/home/vsts/work/1/s'
+              targetPath: '$(System.DefaultWorkingDirectory)'
 
           - task: Bash@3
             displayName: 'Update links in versioned ARM template and scripts'
@@ -305,7 +329,7 @@ stages:
                 
                 echo "Extracting files from artifact zip"
                  
-                unzip arm-deployment-bundle.zip -d .
+                unzip -o arm-deployment-bundle.zip -d .
                 
                 
                 DEPLOY_MODULES_FILENAME="deploy-modules-$(buildSuffix).sh"
@@ -344,7 +368,7 @@ stages:
                 jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
                 
                 echo "Updated Primary scripts Url for deploymentScript in arm template"
-              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'
 
           - task: Bash@3
             displayName: 'Update links in ARM template and scripts'
@@ -387,7 +411,7 @@ stages:
                 jq --arg a "$SCRIPT_URL" '.resources[8].properties.template.resources[1].resources[3].properties.packageUri = $a' "$ARM_TEMPLATE_FILENAME" > "tmp" && mv "tmp" "$ARM_TEMPLATE_FILENAME"
                 
                 echo "Updated Primary scripts Url for deploymentScript in arm template"
-              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'
           - task: Bash@3
             enabled: true
             displayName: 'Upload the ARM templates and scripts to release storage account'
@@ -416,8 +440,7 @@ stages:
                   --public-access blob
                 fi
                 
-                
-
+    
                 az storage blob upload \
                   --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
                   --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
@@ -482,6 +505,26 @@ stages:
                   --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
                   --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
                   --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file smoketest.sh \
+                  --name smoketest.sh
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --file smoketest.sh \
+                  --name "$(buildSuffix)/smoketest.sh"
+                
+                az storage blob lease acquire \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
+                  --blob-name "$(buildSuffix)/smoketest.sh"  
+
+                az storage blob upload \
+                  --account-name $(RELEASE_STORAGE_ACCOUNT_NAME) \
+                  --account-key $(RELEASE_STORAGE_ACCOUNT_KEY) \
+                  --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
                   --file manifest-bundle.zip \
                   --name "manifest-bundle.zip"
                 
@@ -539,4 +582,4 @@ stages:
                   --container-name "$RELEASE_STORAGE_ACCOUNT_ARM_CONTAINER_NAME" \
                   --file azuredeploy.json \
                   --name azuredeploy-latest.json
-              workingDirectory: '/home/vsts/work/1/s/arm-deployment-bundle'
+              workingDirectory: '$(System.DefaultWorkingDirectory)/arm-deployment-bundle'

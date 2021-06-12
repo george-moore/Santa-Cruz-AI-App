@@ -20,7 +20,7 @@ resources:
       enabled: true
 
 pool:
-  vmImage: 'ubuntu-latest'
+  default
 
 stages:
 - stage: PublishArtifacts
@@ -45,16 +45,16 @@ stages:
       inputs:
         SourceFolder: '$(Pipeline.Workspace)'
         Contents: people-detection-app.zip
-        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/combined'
 
 
     # Copy all the required files for deployment to a folder
     - task: CopyFiles@2
       displayName: 'Copy Files to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
-          README.md 
+          README.md
           edge-solution/modules/CameraStream/camera-stream/video/staircase.mp4
           edge-solution/deployment.camera.template.json
           edge-solution/.env
@@ -63,34 +63,34 @@ stages:
           deployment/cloudshell/variables.template
           deployment/cloudshell/frontend-setup.sh
           deployment/cloudshell/smoketest.sh
-        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/combined'
         flattenFolders: true
 
     - task: CopyFiles@2
       displayName: 'Copy CameraStream module to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           edge-solution/modules/CameraStream/module.json
-        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined/modules/CameraStream'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/combined/modules/CameraStream'
         flattenFolders: true
 
     - task: CopyFiles@2
       displayName: 'Copy Detector module to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           edge-solution/modules/Detector/module.json
-        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined/modules/Detector'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/combined/modules/Detector'
         flattenFolders: true
 
     - task: CopyFiles@2
       displayName: 'Copy docs to a combined folder'
       inputs:
-        SourceFolder: '/home/vsts/work/1/s/UnifiedEdge/'
+        SourceFolder: '$(System.DefaultWorkingDirectory)'
         Contents: |
           docs/*
-        TargetFolder: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        TargetFolder: '$(System.DefaultWorkingDirectory)/combined'
 
     - task: Bash@3
       displayName: 'ShellCheck validation'
@@ -106,7 +106,7 @@ stages:
           fi
           
           # Change directory location to combined folder
-          cd '/home/vsts/work/1/s/UnifiedEdge/combined'
+          cd '$(System.DefaultWorkingDirectory)/combined'
           
           # Run shellcheck, Shellcheck will return a list of warnings if the script is not complient with all the rules
           # We are checking the the result returned by shellcheck.
@@ -116,7 +116,7 @@ stages:
           SHELL_CHECK_RESULT_SMOKETEST=$(shellcheck ./smoketest.sh -x)
 
           # Change directory location to cloudshell script
-          cd '/home/vsts/work/1/s/UnifiedEdge/deployment/cloudshell'
+          cd '$(System.DefaultWorkingDirectory)/deployment/cloudshell'
 
           SHELL_CHECK_RESULT_CLOUDSHELL=$(shellcheck ./cloudshell-deployment.sh -x)
           if [ -z "$SHELL_CHECK_RESULT_DEPLOY_IOT" ] && [ -z "$SHELL_CHECK_RESULT_FRONTEND" ] && [ -z "$SHELL_CHECK_RESULT_EYE_VM" ] && [ -z "$SHELL_CHECK_RESULT_SMOKETEST" ] && [ -z "$SHELL_CHECK_RESULT_CLOUDSHELL" ]; then
@@ -149,7 +149,7 @@ stages:
     # Creating the deployment bundle zip from combined folder
     - task: ArchiveFiles@2
       inputs:
-        rootFolderOrFile: '/home/vsts/work/1/s/UnifiedEdge/combined'
+        rootFolderOrFile: '$(System.DefaultWorkingDirectory)/combined'
         includeRootFolder: false
         archiveType: 'zip'
         archiveFile: '$(Build.ArtifactStagingDirectory)/deployment-bundle.zip'
